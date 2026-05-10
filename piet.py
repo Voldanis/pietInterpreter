@@ -1,19 +1,27 @@
 import sys
 from PIL import Image
+import numpy as np
+
 
 class ProgramState:
     def __init__(self):
         self.dp = 0  # 0:R, 1:D, 2:L, 3:U
         self.cc = 0  # 0:L, 1:R
 
+
 class PietInterpreter:
-    def __init__(self, image_path, codel_size=1):
+    def __init__(self, image_path, codel_size=-1, step_border=-1):
+        # ?
         self.img = Image.open(image_path).convert("RGB")
+        # ?
         self.width, self.height = self.img.size
+        # ?
         self.pixels = self.img.load()
-        self.codel_size = codel_size
+        self.codel_size = codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
         self.stack = []
         self.state = ProgramState()
+        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
+        self.step_border = step_border
         
         self.palette = [
             [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
@@ -25,6 +33,57 @@ class PietInterpreter:
             ["push", "subtract", "mod", "pointer", "roll", "out_num"],
             ["pop", "multiply", "not", "switch", "in_num", "out_char"]
         ]
+
+    def reload(self):
+        pass
+
+    @staticmethod
+    def max_square_size(image_path):
+        """
+        Оптимизированная версия с использованием NumPy.
+        """
+        with Image.open(image_path) as img:
+            img.load()
+            rgb_img = img.convert("RGB")
+            pixel_array = np.array(rgb_img)
+
+        height, width = pixel_array.shape[:2]
+
+        # Находим все делители минимальной стороны
+        min_dim = min(height, width)
+
+        # Проверяем возможные размеры (только делители)
+        for size in range(min_dim, 0, -1):
+            if height % size == 0 and width % size == 0:
+                if PietInterpreter.check_uniform_squares(pixel_array, size):
+                    return size
+        return 1
+
+    @staticmethod
+    def check_uniform_squares(pixel_array, square_size):
+        """
+        Быстрая проверка квадратов с использованием reshape.
+        """
+        height, width = pixel_array.shape[:2]
+
+        # Изменяем форму массива для удобной проверки
+        h_blocks = height // square_size
+        w_blocks = width // square_size
+
+        # Перестраиваем массив для группировки по блокам
+        reshaped = pixel_array.reshape(h_blocks, square_size, w_blocks, square_size, -1)
+
+        # Для каждого блока проверяем, что все элементы одинаковы
+        for i in range(h_blocks):
+            for j in range(w_blocks):
+                block = reshaped[i, :, j, :, :]
+                if not np.all(block == block[0, 0]):
+                    return False
+
+        return True
+
+    def step_border_exist(self):
+        return self.step_border >= 0
 
     def _get_color_coords(self, rgb):
         for l_idx, row in enumerate(self.palette):
@@ -130,11 +189,9 @@ class PietInterpreter:
     def run(self):
         cx, cy = 0, 0
         attempts = 0
-        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
-        max_steps = 100000 
         step = 0
 
-        while attempts < 8 and step < max_steps:
+        while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
             block, color = self._get_block(cx, cy)
             exit_c = self._find_exit_codel(block)
@@ -201,5 +258,7 @@ class PietInterpreter:
                 attempts = 0
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2: print("Usage: python piet.py <file> <size>")
-    else: PietInterpreter(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1).run()
+    if len(sys.argv) < 2:
+        print("Usage: python piet.py <file> <size>")
+    else:
+        PietInterpreter(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1).run()
