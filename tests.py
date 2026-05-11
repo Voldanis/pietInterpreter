@@ -1,6 +1,6 @@
 import unittest
 from piet import PietInterpreter, ProgramState
-from normalizer import Normalizer
+from normalizer import Normalizer, Pixel
 
 class TestPietFib(unittest.TestCase):
     def setUp(self):
@@ -73,7 +73,6 @@ class TestNormalizerColor(unittest.TestCase):
 
 class TestNormalizerPixel(unittest.TestCase):
     def setUp(self):
-        from normalizer import Pixel
         self.Pixel = Pixel
 
     def test_pixel_full_normalization(self):
@@ -107,6 +106,39 @@ class TestNormalizerPixel(unittest.TestCase):
         p_white = self.Pixel([235, 240, 250])
         norm_p = Normalizer.try_normalize_pixel(p_white)
         self.assertEqual((norm_p.r, norm_p.g, norm_p.b), (255, 255, 255))
+
+
+class TestNormalizerImageArray(unittest.TestCase):
+    def setUp(self):
+        self.Pixel = Pixel
+
+    def test_normalize_matrix(self):
+        # Крч матрица задана так:
+        # (0,0) - почти красный, (0,1) - грязный цвет
+        # (1,0) - почти белый, (1,1) - чистый черный
+        matrix = [
+            [self.Pixel([250, 5, 5]),   self.Pixel([100, 100, 100])],
+            [self.Pixel([240, 240, 240]), self.Pixel([0, 0, 0])]
+        ]
+        
+        normalized = Normalizer.normalize_pixels(matrix)
+        
+        # Чекаем размеры
+        self.assertEqual(len(normalized), 2)
+        self.assertEqual(len(normalized[0]), 2)
+        
+        # Чекаем нормализацию красного
+        self.assertEqual((normalized[0][0].r, normalized[0][0].g, normalized[0][0].b), (255, 0, 0))
+        
+        # Чекаем, что грязный цвет (100) остался без изменений
+        self.assertEqual(normalized[0][1].r, 100)
+        
+        # Чекаем нормализацию белого
+        self.assertEqual((normalized[1][0].r, normalized[1][0].g, normalized[1][0].b), (255, 255, 255))
+
+    def test_empty_matrix(self):
+        # Чек на пустой вход
+        self.assertEqual(Normalizer.normalize_pixels([]), [])
 
 
 if __name__ == '__main__':
