@@ -40,8 +40,8 @@ class TestPietFib(unittest.TestCase):
         
         self.assertEqual(self.interp.stack, [3, 5])
 
-class TestNormalizerColor(unittest.TestCase):
 
+class TestNormalizerColor(unittest.TestCase):
     def test_normalize_black(self):
         # Все, что меньше 63, должно стать 0
         self.assertEqual(Normalizer.try_normalize_color(0), (0, True))
@@ -69,6 +69,45 @@ class TestNormalizerColor(unittest.TestCase):
         val, success = Normalizer.try_normalize_color(220)
         self.assertFalse(success)
         self.assertEqual(val, 220)
+
+
+class TestNormalizerPixel(unittest.TestCase):
+    def setUp(self):
+        from normalizer import Pixel
+        self.Pixel = Pixel
+
+    def test_pixel_full_normalization(self):
+        # Жоск чистый красный (255, 0, 0)
+        p = self.Pixel([255, 0, 0])
+        norm_p = Normalizer.try_normalize_pixel(p)
+        self.assertEqual((norm_p.r, norm_p.g, norm_p.b), (255, 0, 0))
+
+        # Уже не жоск чистый розовый (типа измениться должен)
+        p_noisy = self.Pixel([240, 180, 200])
+        norm_p_noisy = Normalizer.try_normalize_pixel(p_noisy)
+        self.assertEqual((norm_p_noisy.r, norm_p_noisy.g, norm_p_noisy.b), (255, 192, 192))
+
+    def test_pixel_partial_failure(self):
+        # не попадает в границы нормализации
+        # Надеюсь, что должно вернуть исходный пиксель без изменений
+        p_broken = self.Pixel([255, 100, 0])
+        norm_p = Normalizer.try_normalize_pixel(p_broken)
+
+        self.assertEqual((norm_p.r, norm_p.g, norm_p.b), (255, 100, 0))
+        # Проверяем, что ниче не изменилось
+        self.assertEqual(norm_p.g, 100) 
+
+    def test_pixel_black_and_white(self):
+        # Граничный случай для черного
+        p_black = self.Pixel([60, 10, 5])
+        norm_p = Normalizer.try_normalize_pixel(p_black)
+        self.assertEqual((norm_p.r, norm_p.g, norm_p.b), (0, 0, 0))
+
+        # Ну и граничный случай для белого
+        p_white = self.Pixel([235, 240, 250])
+        norm_p = Normalizer.try_normalize_pixel(p_white)
+        self.assertEqual((norm_p.r, norm_p.g, norm_p.b), (255, 255, 255))
+
 
 if __name__ == '__main__':
     unittest.main()
