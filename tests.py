@@ -271,5 +271,50 @@ class TestProgramState(unittest.TestCase):
         self.state.switch(2) # Четное число переключений возвращает состояние
         self.assertNotEqual(self.state.cc, initial_cc)
 
+
+class TestInterpreterCommands(unittest.TestCase):
+    def setUp(self):
+        # Используем __new__ чтобы не грузить реальную картинку в тестах логики
+        self.interp = PietInterpreter.__new__(PietInterpreter)
+        self.interp.stack = []
+        self.interp.state = ProgramState()
+
+    def test_arithmetic(self):
+        """Проверка add, subtract, multiply, divide, mod."""
+        self.interp.stack = [10, 3]
+        self.interp._execute_cmd("add", 0)
+        self.assertEqual(self.interp.stack, [13])
+
+        self.interp.stack = [10, 3]
+        self.interp._execute_cmd("subtract", 0) # 10 - 3
+        self.assertEqual(self.interp.stack, [7])
+
+        self.interp.stack = [10, 3]
+        self.interp._execute_cmd("divide", 0) # 10 // 3
+        self.assertEqual(self.interp.stack, [3])
+
+    def test_roll(self):
+        """Проверка сложной команды roll."""
+        # Стек: [4, 3, 2, 1], глубина 3, количество 1
+        self.interp.stack = [4, 3, 2, 1, 3, 1]
+        self.interp._execute_cmd("roll", 0)
+        # Ожидаем, что верхние 3 элемента [3, 2, 1] сдвинутся: [1, 3, 2]
+        self.assertEqual(self.interp.stack, [4, 1, 3, 2])
+
+    def test_not_and_greater(self):
+        """Проверка логических команд."""
+        self.interp.stack = [5]
+        self.interp._execute_cmd("not", 0)
+        self.assertEqual(self.interp.stack, [0]) # Not 5 = 0
+
+        self.interp.stack = [0]
+        self.interp._execute_cmd("not", 0)
+        self.assertEqual(self.interp.stack, [1]) # Not 0 = 1
+
+        self.interp.stack = [5, 10]
+        self.interp._execute_cmd("greater", 0) # 5 > 10?
+        self.assertEqual(self.interp.stack, [0])
+        
+        
 if __name__ == '__main__':
     unittest.main()
