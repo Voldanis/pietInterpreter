@@ -1,5 +1,5 @@
 import unittest
-from piet import PietInterpreter, ProgramState
+from piet import PietInterpreter, ProgramState, DirPointerState, CodelCounterState
 from normalizer import Normalizer, Pixel
 import numpy as np
 import os

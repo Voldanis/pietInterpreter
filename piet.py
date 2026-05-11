@@ -4,18 +4,15 @@ from enum import Enum
 from normalizer import *
 from collections import deque
 
-
 class DirPointerState(Enum):
     RIGHT = 0
     DOWN = 1
     LEFT = 2
     UP = 3
 
-
 class CodelCounterState(Enum):
     LEFT = 0
     RIGHT = 1
-
 
 class ProgramState:
     def __init__(self):
@@ -27,15 +24,16 @@ class ProgramState:
                   DirPointerState.DOWN,
                   DirPointerState.LEFT,
                   DirPointerState.UP]
+        # Поворот DP на n шагов по часовой стрелке
         change = (n + self.dp.value) % 4
         self.dp = states[change]
 
     def switch(self, n):
         states = [CodelCounterState.LEFT,
                   CodelCounterState.RIGHT]
-        change = (n + self.dp.value) % 2
+        # Исправлено: переключение CC зависит от текущего CC, а не от DP
+        change = (n + self.cc.value) % 2
         self.cc = states[change]
-
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
@@ -43,8 +41,7 @@ class PietInterpreter:
         self.pixels = img.pixels
         self.width = img.width
         self.height = img.height
-        self.codel_size = 1
-        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
+        self.codel_size = 1  # После нормализации работаем с коделом как с 1 пикселем
         self.step_border = step_border
         self.stack = []
         self.state = ProgramState()
@@ -60,38 +57,25 @@ class PietInterpreter:
             ["pop", "multiply", "not", "switch", "in_num", "out_char"]
         ]
 
-    # загрузить новое изображение
-    def reload(self, image_path, codel_size=-1, step_border=-1):
-        img = Normalizer.normalize(image_path, codel_size)
-        self.pixels = img.pixels
-        self.width = img.width
-        self.height = img.height
-        self.codel_size = 1
-        self.step_border = step_border
-        self.stack = []
-        self.state = ProgramState()
-
     def step_border_exist(self):
         return self.step_border >= 0
 
     def _get_color_coords(self, rgb):
+        if isinstance(rgb, Pixel):
+            rgb = (rgb.r, rgb.g, rgb.b)
         for l_idx, row in enumerate(self.palette):
             if rgb in row: return l_idx, row.index(rgb)
         return None
 
     def get_block(self, start_x, start_y):
-        """Оптимизированный Flood Fill: шагает сразу по коделам."""
         target_color = self.pixels[start_x][start_y]
         block = set()
-        queue = [(start_x, start_y)]
+        queue = deque([(start_x, start_y)])
         block.add((start_x, start_y))
 
-        idx = 0
-        while idx < len(queue):
-            x, y = queue[idx]
-            idx += 1
-            # Проверяем соседей, отступая на размер кодела
-            for dx, dy in [(self.codel_size, 0), (-self.codel_size, 0), (0, self.codel_size), (0, -self.codel_size)]:
+        while queue:
+            x, y = queue.popleft()
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.width and 0 <= ny < self.height:
                     if (nx, ny) not in block and self.pixels[nx][ny] == target_color:
@@ -100,23 +84,22 @@ class PietInterpreter:
         return block, target_color
 
     def _find_exit_codel(self, block):
-        # Логика выбора кодела по DP/CC
-        if self.state.dp == DirPointerState.RIGHT: # Right
+        if self.state.dp == DirPointerState.RIGHT:
             mx = max(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.RIGHT))
-        elif self.state.dp == DirPointerState.DOWN: # Down
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.RIGHT))
+        elif self.state.dp == DirPointerState.DOWN:
             my = max(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.LEFT))
-        elif self.state.dp == DirPointerState.LEFT: # Left
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.LEFT))
+        elif self.state.dp == DirPointerState.LEFT:
             mx = min(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.LEFT))
-        else: # Up
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.LEFT))
+        else: # UP
             my = min(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.RIGHT))
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.RIGHT))
         return edge[0]
 
     def _execute_cmd(self, cmd, n):
@@ -149,19 +132,19 @@ class PietInterpreter:
             elif cmd == "pointer":
                 if self.stack: self.state.pointer(self.stack.pop())
             elif cmd == "switch":
-                if self.stack:
-                    t = abs(self.stack.pop())
-                    for _ in range(t): self.state.switch(1)
+                if self.stack: self.state.switch(abs(self.stack.pop()))
             elif cmd == "duplicate":
                 if self.stack: self.stack.append(self.stack[-1])
             elif cmd == "roll":
                 if len(self.stack) >= 2:
-                    count = self.stack.pop(); depth = self.stack.pop()
-                    if 0 < depth <= len(self.stack):
+                    count = self.stack.pop()
+                    depth = self.stack.pop()
+                    if depth > 0 and depth <= len(self.stack):
                         part = self.stack[-depth:]
                         rest = self.stack[:-depth]
                         shift = count % depth
-                        part = part[-shift:] + part[:-shift]
+                        if shift != 0:
+                            part = part[-shift:] + part[:-shift]
                         self.stack = rest + part
             elif cmd == "in_num":
                 res = sys.stdin.readline().strip()
@@ -173,7 +156,7 @@ class PietInterpreter:
                 if self.stack: print(self.stack.pop(), end="", flush=True)
             elif cmd == "out_char":
                 if self.stack: print(chr(self.stack.pop()), end="", flush=True)
-        except: pass
+        except Exception: pass
 
     def run(self):
         cx, cy = 0, 0
@@ -185,55 +168,63 @@ class PietInterpreter:
             block, color = self.get_block(cx, cy)
             exit_c = self._find_exit_codel(block)
             
-            # НОВЫЙ РАСЧЕТ РАЗМЕРА: 
-            # Мы считаем количество УНИКАЛЬНЫХ коделов в блоке.
-            # Это спасет, если картинка чуть-чуть "кривая".
-            unique_codels = set()
-            for px, py in block:
-                unique_codels.add((px // self.codel_size, py // self.codel_size))
-            nnnn = len(unique_codels)
+            # n = количество коделов в блоке
+            nnnn = len(block)
 
-            # Определяем направление шага
             dx, dy = 0, 0
-            if self.state.dp == DirPointerState.RIGHT: dx = self.codel_size
-            elif self.state.dp == DirPointerState.DOWN: dy = self.codel_size
-            elif self.state.dp == DirPointerState.LEFT: dx = -self.codel_size
-            elif self.state.dp == DirPointerState.UP: dy = -self.codel_size
+            if self.state.dp == DirPointerState.RIGHT: dx = 1
+            elif self.state.dp == DirPointerState.DOWN: dy = 1
+            elif self.state.dp == DirPointerState.LEFT: dx = -1
+            elif self.state.dp == DirPointerState.UP: dy = -1
 
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
-            # Проверка столкновения (стена или черный)
-            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[nx][ny] == (0, 0, 0):
-                if attempts % 2 == 0:
-                    self.state.switch(1)
-                else:
-                    self.state.pointer(1)
+            # Проверка препятствия
+            is_obstacle = not (0 <= nx < self.width and 0 <= ny < self.height)
+            if not is_obstacle:
+                pixel = self.pixels[nx][ny]
+                if isinstance(pixel, Pixel):
+                    pixel = (pixel.r, pixel.g, pixel.b)
+                if pixel == (0, 0, 0):
+                    is_obstacle = True
+
+            if is_obstacle:
+                if attempts % 2 == 0: self.state.switch(1)
+                else: self.state.pointer(1)
                 attempts += 1
                 continue
 
-            next_color = self.pixels[nx][ny]
+            next_pixel = self.pixels[nx][ny]
+            if isinstance(next_pixel, Pixel):
+                next_color = (next_pixel.r, next_pixel.g, next_pixel.b)
+            else:
+                next_color = next_pixel
             
-            # Обработка белого цвета (скольжение)
+            # Белый цвет (Slide)
             if next_color == (255, 255, 255):
-                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[nx][ny] == (255, 255, 255):
+                while 0 <= nx < self.width and 0 <= ny < self.height:
+                    curr = self.pixels[nx][ny]
+                    if isinstance(curr, Pixel): curr = (curr.r, curr.g, curr.b)
+                    if curr != (255, 255, 255): break
                     nx += dx
                     ny += dy
                 
-                # Если после белого вылетели в стену или черный
-                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[nx][ny] == (0, 0, 0):
-                    # По спецификации: откатываемся назад в белый и меняем направление
-                    nx -= dx
-                    ny -= dy
+                # Проверка того, куда выскочили из белого
+                is_hit = not (0 <= nx < self.width and 0 <= ny < self.height)
+                if not is_hit:
+                    hit_p = self.pixels[nx][ny]
+                    if isinstance(hit_p, Pixel): hit_p = (hit_p.r, hit_p.g, hit_p.b)
+                    if hit_p == (0, 0, 0): is_hit = True
+                
+                if is_hit:
+                    nx -= dx; ny -= dy
                     self.state.pointer(1)
                     attempts += 1
-                    # Важно: cx, cy остаются на входе в белый, просто пробуем другой выход
                     continue
                 
-                # Если нашли цвет после белого
                 cx, cy = nx, ny
                 attempts = 0
             else:
-                # Обычный переход между цветами
                 c1 = self._get_color_coords(color)
                 c2 = self._get_color_coords(next_color)
                 
@@ -246,9 +237,8 @@ class PietInterpreter:
                 cx, cy = nx, ny
                 attempts = 0
 
-
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
+    if len(sys.argv) < 2:
         print("Usage: python piet.py <file> <*size> <*step_border>")
     else:
         PietInterpreter(sys.argv[1],
