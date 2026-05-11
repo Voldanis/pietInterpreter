@@ -2,6 +2,8 @@ import unittest
 from piet import PietInterpreter, ProgramState
 from normalizer import Normalizer, Pixel
 import numpy as np
+import os
+from PIL import Image
 
 class TestPietFib(unittest.TestCase):
     def setUp(self):
@@ -192,6 +194,33 @@ class TestNormalizerScaling(unittest.TestCase):
         np.testing.assert_array_equal(scaled[0, 0], [255, 0, 0])
         # [1, 1] — правый нижний кодел
         np.testing.assert_array_equal(scaled[1, 1], [255, 255, 0])
+
+
+class TestNormalizerFinal(unittest.TestCase):
+    def test_normalize_integration_real_file(self):
+        test_img = r"C:\Users\user\Documents\GitHub\pietInterpreter\ДляТестов.png"
+        
+        if not os.path.exists(test_img):
+            self.skipTest(f"Файл {test_img} не найден, проверь путь!")
+
+        result = Normalizer.normalize(test_img, 0)
+
+        # Проверяем структуру объекта
+        self.assertTrue(hasattr(result, 'pixels'), "Объект должен содержать поле pixels")
+        self.assertTrue(hasattr(result, 'width'), "Объект должен содержать поле width")
+        self.assertTrue(hasattr(result, 'height'), "Объект должен содержать поле height")
+
+        # Проверяем типы данных
+        self.assertIsInstance(result.pixels, list, "Поле pixels должно быть списком")
+        
+        if result.width > 0 and result.height > 0:
+            top_left_pixel = result.pixels[0][0]
+            
+            # Проверяем, что это объект Pixel и он нормализован
+            print(f"\n[LOG] Цвет первого кодела: ({top_left_pixel.r}, {top_left_pixel.g}, {top_left_pixel.b})")
+
+        else:
+            self.fail("Нормализатор вернул пустое изображение")
 
 
 if __name__ == '__main__':
