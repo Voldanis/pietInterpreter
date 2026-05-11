@@ -1,6 +1,19 @@
 import sys
 from PIL import Image
 import numpy as np
+from enum import Enum
+from normalizer import Normalizer
+
+class DirPointerState(Enum):
+    RIGHT = 0
+    DOWN = 1
+    LEFT = 2
+    UP = 3
+
+
+class CodelCounterState(Enum):
+    LEFT = 0
+    RIGHT = 1
 
 
 class ProgramState:
@@ -11,18 +24,16 @@ class ProgramState:
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
-        # ?
-        self.img = Image.open(image_path).convert("RGB")
-        # ?
-        self.width, self.height = self.img.size
-        # ?
-        self.pixels = self.img.load()
-        self.codel_size = codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
-        self.stack = []
-        self.state = ProgramState()
+        img = Normalizer.normalize(image_path, codel_size)
+        self.pixels = img.pixels
+        self.width = img.width
+        self.height = img.height
+        self.codel_size = 1 # codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.step_border = step_border
-        
+        self.stack = []
+        self.state = ProgramState()
+
         self.palette = [
             [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
             [(255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 255, 255), (0, 0, 255), (255, 0, 255)],
@@ -34,53 +45,17 @@ class PietInterpreter:
             ["pop", "multiply", "not", "switch", "in_num", "out_char"]
         ]
 
-    def reload(self):
-        pass
-
-    @staticmethod
-    def max_square_size(image_path):
-        """
-        Оптимизированная версия с использованием NumPy.
-        """
-        with Image.open(image_path) as img:
-            img.load()
-            rgb_img = img.convert("RGB")
-            pixel_array = np.array(rgb_img)
-
-        height, width = pixel_array.shape[:2]
-
-        # Находим все делители минимальной стороны
-        min_dim = min(height, width)
-
-        # Проверяем возможные размеры (только делители)
-        for size in range(min_dim, 0, -1):
-            if height % size == 0 and width % size == 0:
-                if PietInterpreter.check_uniform_squares(pixel_array, size):
-                    return size
-        return 1
-
-    @staticmethod
-    def check_uniform_squares(pixel_array, square_size):
-        """
-        Быстрая проверка квадратов с использованием reshape.
-        """
-        height, width = pixel_array.shape[:2]
-
-        # Изменяем форму массива для удобной проверки
-        h_blocks = height // square_size
-        w_blocks = width // square_size
-
-        # Перестраиваем массив для группировки по блокам
-        reshaped = pixel_array.reshape(h_blocks, square_size, w_blocks, square_size, -1)
-
-        # Для каждого блока проверяем, что все элементы одинаковы
-        for i in range(h_blocks):
-            for j in range(w_blocks):
-                block = reshaped[i, :, j, :, :]
-                if not np.all(block == block[0, 0]):
-                    return False
-
-        return True
+    # загрузить новое изображение
+    def reload(self, image_path, codel_size=-1, step_border=-1):
+        img = Normalizer.normalize(image_path, codel_size)
+        self.pixels = img.pixels
+        self.width = img.width
+        self.height = img.height
+        self.codel_size = 1  # codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
+        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
+        self.step_border = step_border
+        self.stack = []
+        self.state = ProgramState()
 
     def step_border_exist(self):
         return self.step_border >= 0
@@ -202,7 +177,7 @@ class PietInterpreter:
             unique_codels = set()
             for px, py in block:
                 unique_codels.add((px // self.codel_size, py // self.codel_size))
-            n = len(unique_codels)
+            nnnn = len(unique_codels)
 
             # Определяем направление шага
             dx, dy = 0, 0
@@ -252,7 +227,7 @@ class PietInterpreter:
                     diff_light = (c2[0] - c1[0]) % 3
                     diff_hue = (c2[1] - c1[1]) % 6
                     cmd = self.commands[diff_light][diff_hue]
-                    self._execute_cmd(cmd, n)
+                    self._execute_cmd(cmd, nnnn)
                 
                 cx, cy = nx, ny
                 attempts = 0

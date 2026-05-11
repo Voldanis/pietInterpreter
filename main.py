@@ -1,5 +1,6 @@
 import piet
-from Measurer import *
+from dop_funcs import *
+from normalizer import Normalizer
 #print(max_square_size("hw1-11.gif"))
 #print(max_square_size("Gallery/one.png"))
 #print(piet.PietInterpreter.max_square_size("Gallery/pc.png"))
@@ -26,4 +27,7 @@ Gallery/fibbig.gif
 #     print(check_colors(picture))
 #print(check_pixels_in_allowed_colors("Gallery/one_bright.png"))
 
-piet.PietInterpreter("Gallery/one.png").run()
+#piet.PietInterpreter("Gallery/one-zigzag.png").run()
+#piet.PietInterpreter("Gallery/one.png").run()
+a = Normalizer.convet_image_to_pixels("Gallery/one.png")
+print(1)
