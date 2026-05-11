@@ -1,6 +1,7 @@
 import unittest
 from piet import PietInterpreter, ProgramState
 from normalizer import Normalizer, Pixel
+import numpy as np
 
 class TestPietFib(unittest.TestCase):
     def setUp(self):
@@ -139,6 +140,31 @@ class TestNormalizerImageArray(unittest.TestCase):
     def test_empty_matrix(self):
         # Чек на пустой вход
         self.assertEqual(Normalizer.normalize_pixels([]), [])
+
+
+class TestCodelSizeDiscovery(unittest.TestCase):
+    def test_find_max_codel_size_simple(self):
+        # Типа изображение 4на4, где кодел = 2
+        # Каждые 2на2 пикселя одного цвета
+        data = np.zeros((4, 4, 3), dtype=int)
+        data[0:2, 0:2] = [255, 0, 0] # Красный блок
+        data[0:2, 2:4] = [0, 255, 0] # Зеленый блок
+        data[2:4, 0:2] = [0, 0, 255] # Синий блок
+        data[2:4, 2:4] = [0, 0, 0]   # Черный блок
+        
+        size = Normalizer.find_max_codel_size(data)
+        self.assertEqual(size, 2)
+
+    def test_find_max_codel_size_one(self):
+        # Если пиксели перемешаны, размер кодела должен быть 1
+        data = np.zeros((2, 2, 3), dtype=int)
+        data[0, 0] = [255, 0, 0]
+        data[0, 1] = [0, 255, 0]
+        data[1, 0] = [0, 0, 255]
+        data[1, 1] = [255, 255, 255]
+        
+        size = Normalizer.find_max_codel_size(data)
+        self.assertEqual(size, 1)
 
 
 if __name__ == '__main__':
