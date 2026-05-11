@@ -40,11 +40,10 @@ class Pixel:
 class Normalizer:
     @staticmethod
     def normalize(image, in_scale_size):
-        pixels = np.array(
-            Normalizer.convet_image_to_pixels(
-            Normalizer.normalize_pixels(image)))
+        pixels = Normalizer.normalize_pixels(
+            Normalizer.convet_image_to_pixels(image))
         scale_size = in_scale_size if in_scale_size > 0 else Normalizer.find_max_codel_size(pixels)
-        normalized_pixels = Normalizer.scale_image(pixels, scale_size)
+        normalized_pixels = pixels if scale_size == 1 else Normalizer.scale_image(pixels, scale_size)
         return NormalizedImage(normalized_pixels)
 
     @staticmethod
@@ -98,11 +97,11 @@ class Normalizer:
             raise ValueError("n должно быть не больше 2000")
 
         with open('primes.txt', 'r') as f:
-            first_line = f.readline().strip()
-            primes = list(map(int, first_line.split()))
+            first_line = f.readline().replace(",", " ").split()
+            primes = list(map(int, first_line))
             if n >= 500:
-                second_line = f.readline().strip()
-                primes.extend(map(int, second_line.split()))
+                second_line = f.readline().replace(",", " ").split()
+                primes.extend(map(int, second_line))
         return [p for p in primes if p <= n]
 
     @staticmethod
@@ -121,7 +120,7 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        height, width = pixels.shape[:2]
+        height, width = len(pixels), len(pixels[0])
         gsd = math.gcd(height, width)
         primes = Normalizer.get_primes(gsd)[::-1]
 
@@ -134,16 +133,16 @@ class Normalizer:
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        height, width = pixels.shape[:2]
-        for i in range(0, scale_size, height):
+        height, width = len(pixels), len(pixels[0])
+        for i in range(0, height, scale_size):
             row = []
-            for j in range(0, scale_size, width):
+            for j in range(0, width, scale_size):
                     row.append(pixels[i][j])
             result.append(row)
-        return result
+        return np.array(result)
 
 
 class NormalizedImage:
     def __init__(self, pixels):
         self.pixels = pixels
-        self.height, self.width = pixels.shape[:2]
+        self.height, self.width = len(pixels), len(pixels[0])
