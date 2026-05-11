@@ -29,12 +29,33 @@ class ColorsSimple(Enum):
 
 class Pixel:
     def __init__(self, colors):
-        self.r = colors[0]
-        self.g = colors[1]
-        self.b = colors[2]
+        self._r = colors[0]
+        self._g = colors[1]
+        self._b = colors[2]
+
+    @property
+    def r(self):
+        return self._r
+
+    @property
+    def g(self):
+        return self._g
+
+    @property
+    def b(self):
+        return self._b
 
     def __str__(self):
         return f"({self.r}, {self.g}, {self.b})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Pixel):
+            return self.r == other[0] and self.g == other[1] and self.b == other[2]
+            #return False
+        return self.r == other.r and self.g == other.g and self.b == other.b
+
+    def __hash__(self):
+        return hash((self.r, self.g, self.b))
 
 
 class Normalizer:
@@ -55,7 +76,7 @@ class Normalizer:
             img.load()
             rgb_img = img.convert("RGB")
             pixel_array = np.array(rgb_img)
-            return [[Pixel(rgb) for rgb in line] for line in pixel_array]
+            return np.array([[Pixel(rgb) for rgb in line] for line in pixel_array])
 
     @staticmethod
     def try_normalize_color(color):
@@ -89,7 +110,7 @@ class Normalizer:
             norm_pixels.append([])
             for pixel in line:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
-        return norm_pixels
+        return np.array(norm_pixels)
 
     @staticmethod
     def get_primes(n):
@@ -105,11 +126,11 @@ class Normalizer:
         return [p for p in primes if p <= n]
 
     @staticmethod
-    def check_squares(pixes, square_size):
-        height, width = pixes.shape[:2]
+    def check_squares(pixels, square_size):
+        height, width = pixels.shape[:2]
         h_blocks = height // square_size
         w_blocks = width // square_size
-        reshaped = pixes.reshape(h_blocks, square_size, w_blocks, square_size, -1)
+        reshaped = pixels.reshape(h_blocks, square_size, w_blocks, square_size, -1)
 
         for i in range(h_blocks):
             for j in range(w_blocks):
@@ -120,7 +141,7 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        height, width = len(pixels), len(pixels[0])
+        height, width = pixels.shape[:2]
         gsd = math.gcd(height, width)
         primes = Normalizer.get_primes(gsd)[::-1]
 
@@ -133,7 +154,7 @@ class Normalizer:
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        height, width = len(pixels), len(pixels[0])
+        height, width = pixels.shape[:2]
         for i in range(0, height, scale_size):
             row = []
             for j in range(0, width, scale_size):

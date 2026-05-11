@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from enum import Enum
-from normalizer import Normalizer
+from normalizer import *
 from collections import deque
 
 
@@ -23,12 +23,18 @@ class ProgramState:
         self.cc = CodelCounterState.LEFT
 
     def pointer(self, n):
-        change = (n + self.dp) % 4
-        self.dp = change
+        states = [DirPointerState.RIGHT,
+                  DirPointerState.DOWN,
+                  DirPointerState.LEFT,
+                  DirPointerState.UP]
+        change = (n + self.dp.value) % 4
+        self.dp = states[change]
 
     def switch(self, n):
-        change = (n + self.dp) % 2
-        self.cc = change
+        states = [CodelCounterState.LEFT,
+                  CodelCounterState.RIGHT]
+        change = (n + self.dp.value) % 2
+        self.cc = states[change]
 
 
 class PietInterpreter:
@@ -44,10 +50,14 @@ class PietInterpreter:
         self.state = ProgramState()
 
         self.palette = [
-            [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
-            [(255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 255, 255), (0, 0, 255), (255, 0, 255)],
-            [(192, 0, 0), (192, 192, 0), (0, 192, 0), (0, 192, 192), (0, 0, 192), (192, 0, 192)]
+            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)), Pixel((192, 255, 255)),
+             Pixel((192, 192, 255)), Pixel((255, 192, 255))],
+            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)), Pixel((0, 255, 255)), Pixel((0, 0, 255)),
+             Pixel((255, 0, 255))],
+            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)), Pixel((0, 192, 192)), Pixel((0, 0, 192)),
+             Pixel((192, 0, 192))]
         ]
+
         self.commands = [
             ["none", "add", "divide", "greater", "duplicate", "in_char"],
             ["push", "subtract", "mod", "pointer", "roll", "out_num"],
@@ -80,7 +90,7 @@ class PietInterpreter:
         block.add((start_x, start_y))
         
         idx = 0
-        while len(queue):
+        while idx < len(queue):
             x, y = queue[idx]
             idx += 1
             # Проверяем соседей, отступая на размер кодела
@@ -94,22 +104,22 @@ class PietInterpreter:
 
     def _find_exit_codel(self, block):
         # Логика выбора кодела по DP/CC
-        if self.state.dp == 0: # Right
+        if self.state.dp == DirPointerState.RIGHT:
             mx = max(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == 1))
-        elif self.state.dp == 1: # Down
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.RIGHT))
+        elif self.state.dp == DirPointerState.DOWN:
             my = max(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == 0))
-        elif self.state.dp == 2: # Left
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.LEFT))
+        elif self.state.dp == DirPointerState.LEFT:  # Left
             mx = min(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == 0))
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.LEFT))
         else: # Up
             my = min(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == 1))
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.RIGHT))
         return edge[0]
 
     def _execute_cmd(self, cmd, n):
@@ -140,11 +150,11 @@ class PietInterpreter:
                     a = self.stack.pop(); b = self.stack.pop()
                     self.stack.append(1 if b > a else 0)
             elif cmd == "pointer":
-                if self.stack: self.state.dp = (self.state.dp + self.stack.pop()) % 4
+                if self.stack: self.state.pointer(self.stack.pop())
             elif cmd == "switch":
                 if self.stack:
                     t = abs(self.stack.pop())
-                    for _ in range(t): self.state.cc = 1 - self.state.cc
+                    self.state.switch(t)
             elif cmd == "duplicate":
                 if self.stack: self.stack.append(self.stack[-1])
             elif cmd == "roll":
@@ -188,19 +198,23 @@ class PietInterpreter:
 
             # Определяем направление шага
             dx, dy = 0, 0
-            if self.state.dp == 0: dx = self.codel_size
-            elif self.state.dp == 1: dy = self.codel_size
-            elif self.state.dp == 2: dx = -self.codel_size
-            elif self.state.dp == 3: dy = -self.codel_size
+            if self.state.dp == DirPointerState.RIGHT:
+                dx = self.codel_size
+            elif self.state.dp == DirPointerState.DOWN:
+                dy = self.codel_size
+            elif self.state.dp == DirPointerState.LEFT:
+                dx = -self.codel_size
+            elif self.state.dp == DirPointerState.UP:
+                dy = -self.codel_size
 
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
             # Проверка столкновения (стена или черный)
             if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[nx, ny] == (0, 0, 0):
                 if attempts % 2 == 0:
-                    self.state.cc = 1 - self.state.cc
+                    self.state.switch(1)
                 else:
-                    self.state.dp = (self.state.dp + 1) % 4
+                    self.state.pointer(1)
                 attempts += 1
                 continue
 
@@ -217,7 +231,7 @@ class PietInterpreter:
                     # По спецификации: откатываемся назад в белый и меняем направление
                     nx -= dx
                     ny -= dy
-                    self.state.dp = (self.state.dp + 1) % 4
+                    self.state.pointer(1)
                     attempts += 1
                     # Важно: cx, cy остаются на входе в белый, просто пробуем другой выход
                     continue
