@@ -223,5 +223,32 @@ class TestNormalizerFinal(unittest.TestCase):
             self.fail("Нормализатор вернул пустое изображение")
 
 
+class TestNormalizerEdgeCases(unittest.TestCase):
+    def test_get_primes_limit(self):
+        """Проверка защиты от слишком больших чисел."""
+        with self.assertRaises(ValueError):
+            Normalizer.get_primes(2001)
+
+    def test_scale_image_with_objects(self):
+        """Проверка, что масштаб сохраняет объекты Pixel."""
+        from normalizer import Pixel
+        p1 = Pixel([255, 0, 0])
+        p2 = Pixel([0, 255, 0])
+        matrix = [[p1, p1], [p1, p1]] 
+        
+        # очень жду и надеюсь, что после сжатия останется 1на1 и тот же объект
+        scaled = Normalizer.scale_image(matrix, 2)
+        self.assertEqual(scaled.shape, (1, 1))
+        self.assertIs(scaled[0, 0], p1)
+
+    def test_find_max_codel_size_prime_gcd(self):
+        """Если НОД — простое число, должен найти его."""
+        # Картинка 7x7 одного цвета. GCD = 7. 
+        # Если 7 есть в primes.txt, должен вернуть 7.
+        data = np.zeros((7, 7, 3), dtype=np.uint8)
+        size = Normalizer.find_max_codel_size([[Pixel([0,0,0]) for _ in range(7)] for _ in range(7)])
+        self.assertEqual(size, 7)
+
+
 if __name__ == '__main__':
     unittest.main()
