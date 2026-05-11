@@ -250,5 +250,26 @@ class TestNormalizerEdgeCases(unittest.TestCase):
         self.assertEqual(size, 7)
 
 
+class TestProgramState(unittest.TestCase):
+    def setUp(self):
+        self.state = ProgramState()
+
+    def test_pointer_rotation(self):
+        """Проверка поворота указателя направления (DP)."""
+        self.state.pointer(1) # Поворот на 90 градусов по часовой
+        self.assertEqual(self.state.dp, DirPointerState.DOWN)
+        self.state.pointer(2) # Поворот на 180
+        self.assertEqual(self.state.dp, DirPointerState.UP)
+        self.state.pointer(1) # Возврат в исходное
+        self.assertEqual(self.state.dp, DirPointerState.RIGHT)
+
+    def test_switch(self):
+        """Проверка переключения счетчика коделов (CC)."""
+        initial_cc = self.state.cc
+        self.state.switch(1)
+        self.assertNotEqual(self.state.cc, initial_cc)
+        self.state.switch(2) # Четное число переключений возвращает состояние
+        self.assertNotEqual(self.state.cc, initial_cc)
+
 if __name__ == '__main__':
     unittest.main()
