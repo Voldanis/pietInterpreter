@@ -1,8 +1,9 @@
 import sys
-from PIL import Image
 import numpy as np
 from enum import Enum
 from normalizer import Normalizer
+from collections import deque
+
 
 class DirPointerState(Enum):
     RIGHT = 0
@@ -18,8 +19,16 @@ class CodelCounterState(Enum):
 
 class ProgramState:
     def __init__(self):
-        self.dp = 0  # 0:R, 1:D, 2:L, 3:U
-        self.cc = 0  # 0:L, 1:R
+        self.dp = DirPointerState.RIGHT
+        self.cc = CodelCounterState.LEFT
+
+    def pointer(self, n):
+        change = (n + self.dp) % 4
+        self.dp = change
+
+    def switch(self, n):
+        change = (n + self.dp) % 2
+        self.cc = change
 
 
 class PietInterpreter:
@@ -28,7 +37,7 @@ class PietInterpreter:
         self.pixels = img.pixels
         self.width = img.width
         self.height = img.height
-        self.codel_size = 1 # codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
+        self.codel_size = 1
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.step_border = step_border
         self.stack = []
@@ -51,8 +60,7 @@ class PietInterpreter:
         self.pixels = img.pixels
         self.width = img.width
         self.height = img.height
-        self.codel_size = 1  # codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
-        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
+        self.codel_size = 1
         self.step_border = step_border
         self.stack = []
         self.state = ProgramState()
@@ -65,15 +73,14 @@ class PietInterpreter:
             if rgb in row: return l_idx, row.index(rgb)
         return None
 
-    def _get_block(self, start_x, start_y):
-        """Оптимизированный Flood Fill: шагает сразу по коделам."""
+    def get_block(self, start_x, start_y):
         target_color = self.pixels[start_x, start_y]
         block = set()
         queue = [(start_x, start_y)]
         block.add((start_x, start_y))
         
         idx = 0
-        while idx < len(queue):
+        while len(queue):
             x, y = queue[idx]
             idx += 1
             # Проверяем соседей, отступая на размер кодела
@@ -168,7 +175,7 @@ class PietInterpreter:
 
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
-            block, color = self._get_block(cx, cy)
+            block, color = self.get_block(cx, cy)
             exit_c = self._find_exit_codel(block)
             
             # НОВЫЙ РАСЧЕТ РАЗМЕРА: 
@@ -232,8 +239,11 @@ class PietInterpreter:
                 cx, cy = nx, ny
                 attempts = 0
 
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python piet.py <file> <size>")
+    if len(sys.argv) < 2 or len(sys.argv) > 4:
+        print("Usage: python piet.py <file> <*size> <*step_border>")
     else:
-        PietInterpreter(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1).run()
+        PietInterpreter(sys.argv[1],
+                        int(sys.argv[2]) if len(sys.argv) > 2 else -1,
+                        int(sys.argv[3]) if len(sys.argv) > 3 else -1).run()

@@ -29,5 +29,12 @@ Gallery/fibbig.gif
 
 #piet.PietInterpreter("Gallery/one-zigzag.png").run()
 #piet.PietInterpreter("Gallery/one.png").run()
-a = Normalizer.convet_image_to_pixels("Gallery/one.png")
-print(1)
+# a = Normalizer.convet_image_to_pixels("Gallery/one.png")
+
+piet.PietInterpreter("Gallery/hw1-11.gif").run()
+piet.PietInterpreter("Gallery/hw3-5.gif").run()
+piet.PietInterpreter("Gallery/pc.png").run()
+piet.PietInterpreter("Gallery/one_bright.png").run()
+piet.PietInterpreter("Gallery/one.png").run()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 4).run()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 8).run()
