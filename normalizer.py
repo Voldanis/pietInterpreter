@@ -29,12 +29,32 @@ class ColorsSimple(Enum):
 
 class Pixel:
     def __init__(self, colors):
-        self.r = colors[0]
-        self.g = colors[1]
-        self.b = colors[2]
+        self._r = colors[0]
+        self._g = colors[1]
+        self._b = colors[2]
+
+    @property
+    def r(self):
+        return self._r
+
+    @property
+    def g(self):
+        return self._g
+
+    @property
+    def b(self):
+        return self._b
 
     def __str__(self):
         return f"({self.r}, {self.g}, {self.b})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Pixel):
+            return False
+        return self.r == other.r and self.g == other.g and self.b == other.b
+
+    def __hash__(self):
+        return hash((self.r, self.g, self.b))
 
 
 class Normalizer:
@@ -49,13 +69,20 @@ class Normalizer:
     @staticmethod
     def convet_image_to_pixels(image):
         """
-        Конвертирует изображение в массив строк. Каждая строка - массив пикселей.
+        Конвертирует изображение в массив столбцов. Каждый столбец - массив пикселей.
         """
         with Image.open(image) as img:
             img.load()
             rgb_img = img.convert("RGB")
-            pixel_array = np.array(rgb_img)
-            return [[Pixel(rgb) for rgb in line] for line in pixel_array]
+            np_pixel_array = np.array(rgb_img)
+            h, w = np_pixel_array.shape[:2]
+            pixel_array = []
+            for x in range(w):
+                col = []
+                for y in range(h):
+                    col.append(Pixel(np_pixel_array[y][x]))
+                pixel_array.append(col)
+            return pixel_array
 
     @staticmethod
     def try_normalize_color(color):
@@ -85,9 +112,9 @@ class Normalizer:
     @staticmethod
     def normalize_pixels(pixels):
         norm_pixels = []
-        for line in pixels:
+        for col in pixels:
             norm_pixels.append([])
-            for pixel in line:
+            for pixel in col:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
         return norm_pixels
 
@@ -106,7 +133,7 @@ class Normalizer:
 
     @staticmethod
     def check_squares(pixes, square_size):
-        height, width = pixes.shape[:2]
+        width, height = pixes.shape[:2]
         h_blocks = height // square_size
         w_blocks = width // square_size
         reshaped = pixes.reshape(h_blocks, square_size, w_blocks, square_size, -1)
@@ -120,24 +147,24 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        height, width = len(pixels), len(pixels[0])
+        width, height = len(pixels), len(pixels[0])
         gsd = math.gcd(height, width)
         primes = Normalizer.get_primes(gsd)[::-1]
 
         for size in primes:
             if height % size == 0 and width % size == 0:
-                if Normalizer.check_squares(pixels, size):
+                if Normalizer.check_squares(np.array(pixels), size):
                     return size
         return 1
 
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        height, width = len(pixels), len(pixels[0])
+        width, height = len(pixels), len(pixels[0])
         for i in range(0, height, scale_size):
             row = []
             for j in range(0, width, scale_size):
-                    row.append(pixels[i][j])
+                row.append(pixels[i][j])
             result.append(row)
         return np.array(result)
 
@@ -145,4 +172,4 @@ class Normalizer:
 class NormalizedImage:
     def __init__(self, pixels):
         self.pixels = pixels
-        self.height, self.width = len(pixels), len(pixels[0])
+        self.width, self.height = len(pixels), len(pixels[0])
