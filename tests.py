@@ -167,5 +167,32 @@ class TestCodelSizeDiscovery(unittest.TestCase):
         self.assertEqual(size, 1)
 
 
+class TestNormalizerScaling(unittest.TestCase):
+    def setUp(self):
+        from normalizer import Pixel
+        self.Pixel = Pixel
+
+    def test_scale_image_logic(self):
+        """Проверяем, что изображение 4x4 при коделе 2 превращается в 2x2."""
+        # Делаем массив 4x4x3
+        data = np.zeros((4, 4, 3), dtype=np.uint8)
+        data[0:2, 0:2] = [255, 0, 0]   # Красный
+        data[0:2, 2:4] = [0, 255, 0]   # Зеленый
+        data[2:4, 0:2] = [0, 0, 255]   # Синий
+        data[2:4, 2:4] = [255, 255, 0] # Желтый
+
+        scaled = Normalizer.scale_image(data, 2)
+
+        # должно стать 2на2 пикселя
+        self.assertEqual(scaled.shape[0], 2)
+        self.assertEqual(scaled.shape[1], 2)
+        
+        # Проверяем цвета (щас обращаемся по индексам массива)
+        # [0, 0] — левый верхний кодел
+        np.testing.assert_array_equal(scaled[0, 0], [255, 0, 0])
+        # [1, 1] — правый нижний кодел
+        np.testing.assert_array_equal(scaled[1, 1], [255, 255, 0])
+
+
 if __name__ == '__main__':
     unittest.main()
