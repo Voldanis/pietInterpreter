@@ -4,7 +4,7 @@ from PIL import Image  # сделать установку в коде
 import numpy as np
 
 
-class ColorsSimple(Enum):
+class ColorsSimple(Enum): # удалить
     LIGHT_PINK = (255, 192, 192)
     LIGHT_YELLOW = (255, 255, 192)
     LIGHT_GREEN = (192, 255, 192)
@@ -56,21 +56,25 @@ class Pixel:
     def __hash__(self):
         return hash((self.r, self.g, self.b))
 
+    def as_tuple(self):
+        return (self.r, self.g, self.b)
+
 
 class Normalizer:
     @staticmethod
-    def normalize(image, in_scale_size):
+    def normalize(image, in_scale_size=-1):
         pixels = Normalizer.normalize_pixels(
             Normalizer.convet_image_to_pixels(image))
         scale_size = in_scale_size if in_scale_size > 0 else Normalizer.find_max_codel_size(pixels)
-        normalized_pixels = pixels if scale_size == 1 else Normalizer.scale_image(pixels, scale_size)
-        return NormalizedImage(normalized_pixels)
+        codels = pixels if scale_size == 1 else Normalizer.scale_image(pixels, scale_size)
+        return NormalizedImage(codels)
 
     @staticmethod
     def convet_image_to_pixels(image):
         """
-        Конвертирует изображение в массив столбцов. Каждый столбец - массив пикселей.
+        Конвертирует изображение в массив строк. Каждая строка - массив пикселей.
         """
+        # исправлено описание
         with Image.open(image) as img:
             img.load()
             rgb_img = img.convert("RGB")
@@ -105,31 +109,19 @@ class Normalizer:
     @staticmethod
     def normalize_pixels(pixels):
         norm_pixels = []
-        for col in pixels:
+        for row in pixels:
             norm_pixels.append([])
-            for pixel in col:
+            for pixel in row:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
         return np.array(norm_pixels)
 
     @staticmethod
-    def get_primes(n):
-        if n > 2000:
-            raise ValueError("n должно быть не больше 2000")
-
-        with open('primes.txt', 'r') as f:
-            first_line = f.readline().replace(",", " ").split()
-            primes = list(map(int, first_line))
-            if n >= 500:
-                second_line = f.readline().replace(",", " ").split()
-                primes.extend(map(int, second_line))
-        return [p for p in primes if p <= n]
-
-    @staticmethod
     def check_squares(pixels, square_size):
-        height, width = pixels.shape[:2]
+        height, width = len(pixels), len(pixels[0])
+        np_pixels = np.array(pixels)
         h_blocks = height // square_size
         w_blocks = width // square_size
-        reshaped = pixels.reshape(h_blocks, square_size, w_blocks, square_size, -1)
+        reshaped = np_pixels.reshape(h_blocks, square_size, w_blocks, square_size, -1)
 
         for i in range(h_blocks):
             for j in range(w_blocks):
@@ -140,11 +132,10 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        height, width = pixels.shape[:2]
+        height, width = len(pixels), len(pixels[0])
         gsd = math.gcd(height, width)
-        primes = Normalizer.get_primes(gsd)[::-1]
 
-        for size in primes:
+        for size in range(gsd, 1, -1):
             if height % size == 0 and width % size == 0:
                 if Normalizer.check_squares(np.array(pixels), size):
                     return size
@@ -153,7 +144,7 @@ class Normalizer:
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        height, width = pixels.shape[:2]
+        height, width = len(pixels), len(pixels[0])
         for i in range(0, height, scale_size):
             row = []
             for j in range(0, width, scale_size):
@@ -163,6 +154,6 @@ class Normalizer:
 
 
 class NormalizedImage:
-    def __init__(self, pixels):
-        self.pixels = pixels
-        self.width, self.height = len(pixels), len(pixels[0])
+    def __init__(self, codels):
+        self.codels = codels
+        self.height, self.width = len(codels), len(codels[0])

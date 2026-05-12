@@ -33,14 +33,14 @@ class ProgramState:
     def switch(self, n):
         states = [CodelCounterState.LEFT,
                   CodelCounterState.RIGHT]
-        change = (n + self.dp.value) % 2 # баг
+        change = (n + self.cc.value) % 2 # баг исправлен
         self.cc = states[change]
 
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
         img = Normalizer.normalize(image_path, codel_size)
-        self.pixels = img.pixels
+        self.pixels = img.codels
         self.width = img.width
         self.height = img.height
         self.codel_size = 1
@@ -50,13 +50,15 @@ class PietInterpreter:
         self.state = ProgramState()
 
         self.palette = [
-            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)), Pixel((192, 255, 255)),
-             Pixel((192, 192, 255)), Pixel((255, 192, 255))],
-            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)), Pixel((0, 255, 255)), Pixel((0, 0, 255)),
-             Pixel((255, 0, 255))],
-            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)), Pixel((0, 192, 192)), Pixel((0, 0, 192)),
-             Pixel((192, 0, 192))]
+            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
+             Pixel((192, 255, 255)), Pixel((192, 192, 255)), Pixel((255, 192, 255))],
+            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)),
+             Pixel((0, 255, 255)), Pixel((0, 0, 255)), Pixel((255, 0, 255))],
+            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)),
+             Pixel((0, 192, 192)), Pixel((0, 0, 192)), Pixel((192, 0, 192))]
         ]
+        self.black = Pixel((0, 0, 0))
+        self.white = Pixel((255, 255, 255))
 
         self.commands = [
             ["none", "add", "divide", "greater", "duplicate", "in_char"],
@@ -78,14 +80,15 @@ class PietInterpreter:
     def step_border_exist(self):
         return self.step_border >= 0
 
-    def _get_color_coords(self, rgb):
+    def _get_color_coords(self, pixel):
         for l_idx, row in enumerate(self.palette):
-            if rgb in row: return l_idx, row.index(rgb)
+            if pixel in row:
+                return l_idx, row.index(pixel)
         return None
 
     def get_block(self, start_x, start_y):
         """Оптимизированный Flood Fill: шагает сразу по коделам."""
-        target_color = self.pixels[start_x][start_y]
+        target_color = self.pixels[start_y][start_x]
         block = set()
         queue = [(start_x, start_y)]
         block.add((start_x, start_y))
@@ -98,7 +101,7 @@ class PietInterpreter:
             for dx, dy in [(self.codel_size, 0), (-self.codel_size, 0), (0, self.codel_size), (0, -self.codel_size)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.width and 0 <= ny < self.height:
-                    if (nx, ny) not in block and self.pixels[nx][ny] == target_color:
+                    if (nx, ny) not in block and self.pixels[ny][nx] == target_color:
                         block.add((nx, ny))
                         queue.append((nx, ny))
         return block, target_color
@@ -125,30 +128,39 @@ class PietInterpreter:
 
     def _execute_cmd(self, cmd, n):
         try:
-            if cmd == "push": self.stack.append(n)
+            if cmd == "push":
+                self.stack.append(n)
             elif cmd == "pop":
-                if self.stack: self.stack.pop()
+                if self.stack:
+                    self.stack.pop()
             elif cmd == "add":
-                if len(self.stack) >= 2: self.stack.append(self.stack.pop() + self.stack.pop())
+                if len(self.stack) >= 2:
+                    self.stack.append(self.stack.pop() + self.stack.pop())
             elif cmd == "subtract":
                 if len(self.stack) >= 2:
-                    a = self.stack.pop(); b = self.stack.pop()
+                    a = self.stack.pop()
+                    b = self.stack.pop()
                     self.stack.append(b - a)
             elif cmd == "multiply":
-                if len(self.stack) >= 2: self.stack.append(self.stack.pop() * self.stack.pop())
+                if len(self.stack) >= 2:
+                    self.stack.append(self.stack.pop() * self.stack.pop())
             elif cmd == "divide":
                 if len(self.stack) >= 2 and self.stack[-1] != 0:
-                    a = self.stack.pop(); b = self.stack.pop()
+                    a = self.stack.pop()
+                    b = self.stack.pop()
                     self.stack.append(b // a)
             elif cmd == "mod":
                 if len(self.stack) >= 2 and self.stack[-1] != 0:
-                    a = self.stack.pop(); b = self.stack.pop()
+                    a = self.stack.pop()
+                    b = self.stack.pop()
                     self.stack.append(b % a)
             elif cmd == "not":
-                if self.stack: self.stack.append(1 if self.stack.pop() == 0 else 0)
+                if self.stack:
+                    self.stack.append(1 if self.stack.pop() == 0 else 0)
             elif cmd == "greater":
                 if len(self.stack) >= 2:
-                    a = self.stack.pop(); b = self.stack.pop()
+                    a = self.stack.pop()
+                    b = self.stack.pop()
                     self.stack.append(1 if b > a else 0)
             elif cmd == "pointer":
                 if self.stack: self.state.pointer(self.stack.pop())
@@ -157,10 +169,12 @@ class PietInterpreter:
                     t = abs(self.stack.pop())
                     self.state.switch(t)
             elif cmd == "duplicate":
-                if self.stack: self.stack.append(self.stack[-1])
+                if self.stack:
+                    self.stack.append(self.stack[-1])
             elif cmd == "roll":
                 if len(self.stack) >= 2:
-                    count = self.stack.pop(); depth = self.stack.pop()
+                    count = self.stack.pop()
+                    depth = self.stack.pop()
                     if 0 < depth <= len(self.stack):
                         part = self.stack[-depth:]
                         rest = self.stack[:-depth]
@@ -169,15 +183,20 @@ class PietInterpreter:
                         self.stack = rest + part
             elif cmd == "in_num":
                 res = sys.stdin.readline().strip()
-                if res: self.stack.append(int(res))
+                if res:
+                    self.stack.append(int(res))
             elif cmd == "in_char":
                 char = sys.stdin.read(1)
-                if char: self.stack.append(ord(char))
+                if char:
+                    self.stack.append(ord(char))
             elif cmd == "out_num":
-                if self.stack: print(self.stack.pop(), end="", flush=True)
+                if self.stack:
+                    print(self.stack.pop(), end="", flush=True)
             elif cmd == "out_char":
-                if self.stack: print(chr(self.stack.pop()), end="", flush=True)
-        except: pass
+                if self.stack:
+                    print(chr(self.stack.pop()), end="", flush=True)
+        except:
+            pass
 
     def run(self):
         cx, cy = 0, 0
@@ -188,8 +207,8 @@ class PietInterpreter:
             step += 1
             block, color = self.get_block(cx, cy)
             exit_c = self._find_exit_codel(block)
-            
-            # НОВЫЙ РАСЧЕТ РАЗМЕРА: 
+
+            # НОВЫЙ РАСЧЕТ РАЗМЕРА:
             # Мы считаем количество УНИКАЛЬНЫХ коделов в блоке.
             # Это спасет, если картинка чуть-чуть "кривая".
             unique_codels = set()
@@ -211,7 +230,7 @@ class PietInterpreter:
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
             # Проверка столкновения (стена или черный)
-            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[nx][ny] == (0, 0, 0):
+            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
                 if attempts % 2 == 0:
                     self.state.switch(1)
                 else:
@@ -219,16 +238,16 @@ class PietInterpreter:
                 attempts += 1
                 continue
 
-            next_color = self.pixels[nx][ny]
-            
+            next_color = self.pixels[ny][nx]
+
             # Обработка белого цвета (скольжение)
-            if next_color == (255, 255, 255):
-                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[nx][ny] == (255, 255, 255):
+            if next_color == self.white:
+                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[ny][nx] == self.white:
                     nx += dx
                     ny += dy
-                
+
                 # Если после белого вылетели в стену или черный
-                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[nx][ny] == (0, 0, 0):
+                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
                     # По спецификации: откатываемся назад в белый и меняем направление
                     nx -= dx
                     ny -= dy
@@ -236,7 +255,7 @@ class PietInterpreter:
                     attempts += 1
                     # Важно: cx, cy остаются на входе в белый, просто пробуем другой выход
                     continue
-                
+
                 # Если нашли цвет после белого
                 cx, cy = nx, ny
                 attempts = 0
@@ -244,7 +263,7 @@ class PietInterpreter:
                 # Обычный переход между цветами
                 c1 = self._get_color_coords(color)
                 c2 = self._get_color_coords(next_color)
-                
+
                 if c1 and c2:
                     diff_light = (c2[0] - c1[0]) % 3
                     diff_hue = (c2[1] - c1[1]) % 6
