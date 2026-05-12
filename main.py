@@ -2,6 +2,22 @@ import piet
 from dop_funcs import *
 from normalizer import Normalizer
 
+piet.PietInterpreter("Gallery/three.png").run()
+print()
+piet.PietInterpreter("Gallery/one.png").run()
+print()
+piet.PietInterpreter("Gallery/hw1-11.gif").run()
+piet.PietInterpreter("Gallery/hw3-5.gif").run()
+piet.PietInterpreter("Gallery/pc.png").run()
+piet.PietInterpreter("Gallery/one_bright.png").run()
+print()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 4).run()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 8).run()
+#piet.PietInterpreter("Gallery/one-zigzag.png").run()
+piet.PietInterpreter("Gallery/alpha_filled_big.png").run()
+
+
+
 #print(max_square_size("hw1-11.gif"))
 #print(max_square_size("Gallery/one.png"))
 #print(piet.PietInterpreter.max_square_size("Gallery/pc.png"))
@@ -28,16 +44,24 @@ Gallery/fibbig.gif
 #     print(check_colors(picture))
 #print(check_pixels_in_allowed_colors("Gallery/one_bright.png"))
 
-piet.PietInterpreter("Gallery/three.png").run()
-print()
-piet.PietInterpreter("Gallery/one.png").run()
-print()
-piet.PietInterpreter("Gallery/hw1-11.gif").run()
-piet.PietInterpreter("Gallery/hw3-5.gif").run()
-piet.PietInterpreter("Gallery/pc.png").run()
-piet.PietInterpreter("Gallery/one_bright.png").run()
-print()
-piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 4).run()
-piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 8).run()
-#piet.PietInterpreter("Gallery/one-zigzag.png").run()
-piet.PietInterpreter("Gallery/alpha_filled_big.png").run()
+'''
+    def get_border_axis(self):
+        if self.state.dp == DirPointerState.RIGHT or self.state.dp == DirPointerState.LEFT:
+            return 0
+        return 1
+        
+    def find_block_border(self, axis, block):
+        if self.state.dp == DirPointerState.RIGHT:
+            border_coord = max(codel[axis] for codel in block)
+        elif self.state.dp == DirPointerState.DOWN:
+            border_coord = max(codel[axis] for codel in block)
+        elif self.state.dp == DirPointerState.LEFT:
+            border_coord = min(codel[axis] for codel in block)
+        else:  # Up
+            border_coord = min(codel[axis] for codel in block)
+        border = [codel for codel in block if codel[axis] == border_coord]
+        return border
+    
+    def find_exit_codel_by_cc(self, border):
+        return 
+'''

@@ -79,7 +79,7 @@ class PietInterpreter:
     def step_border_exist(self):
         return self.step_border >= 0
 
-    def _get_color_coords(self, pixel):
+    def get_color_coords(self, pixel):
         for row_i, row in enumerate(self.palette):
             if pixel in row:
                 return row_i, row.index(pixel)
@@ -105,32 +105,31 @@ class PietInterpreter:
                                 queue.append((nx, ny))
         return block, target_color
 
-    def _find_exit_codel(self, block):
-        # Логика выбора кодела по DP/CC
+    def find_exit_codel(self, block):
         if self.state.dp == DirPointerState.RIGHT:
-            mx = max(c[0] for c in block)
-            edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.RIGHT))
+            max_x = max(c[0] for c in block)
+            border_codels = [c for c in block if c[0] == max_x]
+            border_codels.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.RIGHT))
         elif self.state.dp == DirPointerState.DOWN:
-            my = max(c[1] for c in block)
-            edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.LEFT))
+            max_y = max(c[1] for c in block)
+            border_codels = [c for c in block if c[1] == max_y]
+            border_codels.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.LEFT))
         elif self.state.dp == DirPointerState.LEFT:
-            mx = min(c[0] for c in block)
-            edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.LEFT))
-        else: # Up
-            my = min(c[1] for c in block)
-            edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.RIGHT))
-        return edge[0]
+            min_x = min(c[0] for c in block)
+            border_codels = [c for c in block if c[0] == min_x]
+            border_codels.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.LEFT))
+        else:  # Up
+            min_y = min(c[1] for c in block)
+            border_codels = [c for c in block if c[1] == min_y]
+            border_codels.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.RIGHT))
+        return border_codels[0]
 
-    def _execute_cmd(self, cmd, n):
+    def execute_cmd(self, cmd, n):
         try:
             if cmd == "push":
                 self.stack.append(n)
             elif cmd == "pop":
-                if self.stack:
+                if len(self.stack) > 0:
                     self.stack.pop()
             elif cmd == "add":
                 if len(self.stack) >= 2:
@@ -154,7 +153,7 @@ class PietInterpreter:
                     b = self.stack.pop()
                     self.stack.append(b % a)
             elif cmd == "not":
-                if self.stack:
+                if len(self.stack) > 0:
                     self.stack.append(1 if self.stack.pop() == 0 else 0)
             elif cmd == "greater":
                 if len(self.stack) >= 2:
@@ -162,13 +161,14 @@ class PietInterpreter:
                     b = self.stack.pop()
                     self.stack.append(1 if b > a else 0)
             elif cmd == "pointer":
-                if self.stack: self.state.pointer(self.stack.pop())
+                if len(self.stack) > 0:
+                    self.state.pointer(self.stack.pop())
             elif cmd == "switch":
-                if self.stack:
+                if len(self.stack) > 0:
                     t = abs(self.stack.pop())
                     self.state.switch(t)
             elif cmd == "duplicate":
-                if self.stack:
+                if len(self.stack) > 0:
                     self.stack.append(self.stack[-1])
             elif cmd == "roll":
                 if len(self.stack) >= 2:
@@ -189,10 +189,10 @@ class PietInterpreter:
                 if char:
                     self.stack.append(ord(char))
             elif cmd == "out_num":
-                if self.stack:
+                if len(self.stack) > 0:
                     print(self.stack.pop(), end="", flush=True)
             elif cmd == "out_char":
-                if self.stack:
+                if len(self.stack) > 0:
                     print(chr(self.stack.pop()), end="", flush=True)
         except:
             pass
@@ -205,7 +205,7 @@ class PietInterpreter:
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
             block, color = self.get_block(cx, cy)
-            exit_c = self._find_exit_codel(block)
+            exit_c = self.find_exit_codel(block)
 
             # НОВЫЙ РАСЧЕТ РАЗМЕРА:
             # Мы считаем количество УНИКАЛЬНЫХ коделов в блоке.
@@ -260,14 +260,14 @@ class PietInterpreter:
                 attempts = 0
             else:
                 # Обычный переход между цветами
-                c1 = self._get_color_coords(color)
-                c2 = self._get_color_coords(next_color)
+                c1 = self.get_color_coords(color)
+                c2 = self.get_color_coords(next_color)
 
                 if c1 and c2:
                     diff_light = (c2[0] - c1[0]) % 3
                     diff_hue = (c2[1] - c1[1]) % 6
                     cmd = self.commands[diff_light][diff_hue]
-                    self._execute_cmd(cmd, nnnn)
+                    self.execute_cmd(cmd, nnnn)
                 
                 cx, cy = nx, ny
                 attempts = 0
