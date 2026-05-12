@@ -27,7 +27,19 @@ Gallery/fibbig.gif
 #     print(check_colors(picture))
 #print(check_pixels_in_allowed_colors("Gallery/one_bright.png"))
 
+
+piet.PietInterpreter("Gallery/one.png").run()
+print()
+piet.PietInterpreter("Gallery/hw1-11.gif").run()
+piet.PietInterpreter("Gallery/hw3-5.gif").run()
+piet.PietInterpreter("Gallery/pc.png").run()
+piet.PietInterpreter("Gallery/one_bright.png").run()
+print()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 4).run()
+piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 8).run()
 #piet.PietInterpreter("Gallery/one-zigzag.png").run()
-#piet.PietInterpreter("Gallery/one.png").run()
-a = Normalizer.convet_image_to_pixels("Gallery/one.png")
-print(1)
+
+# img = Normalizer.normalize(image_path, codel_size)
+# self.pixels = img.codels
+# self.width = img.width
+# self.height = img.height

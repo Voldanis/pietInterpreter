@@ -29,23 +29,45 @@ class ColorsSimple(Enum):
 
 class Pixel:
     def __init__(self, colors):
-        self.r = colors[0]
-        self.g = colors[1]
-        self.b = colors[2]
+        self._r = colors[0]
+        self._g = colors[1]
+        self._b = colors[2]
+
+    @property
+    def r(self):
+        return self._r
+
+    @property
+    def g(self):
+        return self._g
+
+    @property
+    def b(self):
+        return self._b
 
     def __str__(self):
         return f"({self.r}, {self.g}, {self.b})"
 
+    def __eq__(self, other):
+        if not isinstance(other, Pixel):
+            return False
+        return self.r == other.r and self.g == other.g and self.b == other.b
+
+    def __hash__(self):
+        return hash((self.r, self.g, self.b))
+
+    def as_tuple(self):
+        return (self.r, self.g, self.b)
+
 
 class Normalizer:
     @staticmethod
-    def normalize(image, in_scale_size):
-        pixels = np.array(
-            Normalizer.convet_image_to_pixels(
-            Normalizer.normalize_pixels(image)))
+    def normalize(image, in_scale_size=-1):
+        pixels = Normalizer.normalize_pixels(
+            Normalizer.convet_image_to_pixels(image))
         scale_size = in_scale_size if in_scale_size > 0 else Normalizer.find_max_codel_size(pixels)
-        normalized_pixels = Normalizer.scale_image(pixels, scale_size)
-        return NormalizedImage(normalized_pixels)
+        codels = pixels if scale_size == 1 else Normalizer.scale_image(pixels, scale_size)
+        return NormalizedImage(codels)
 
     @staticmethod
     def convet_image_to_pixels(image):
@@ -86,31 +108,19 @@ class Normalizer:
     @staticmethod
     def normalize_pixels(pixels):
         norm_pixels = []
-        for line in pixels:
+        for row in pixels:
             norm_pixels.append([])
-            for pixel in line:
+            for pixel in row:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
         return norm_pixels
 
     @staticmethod
-    def get_primes(n):
-        if n > 2000:
-            raise ValueError("n должно быть не больше 2000")
-
-        with open('primes.txt', 'r') as f:
-            first_line = f.readline().strip()
-            primes = list(map(int, first_line.split()))
-            if n >= 500:
-                second_line = f.readline().strip()
-                primes.extend(map(int, second_line.split()))
-        return [p for p in primes if p <= n]
-
-    @staticmethod
-    def check_squares(pixes, square_size):
-        height, width = pixes.shape[:2]
+    def check_squares(pixels, square_size):
+        height, width = len(pixels), len(pixels[0])
+        np_pixels = np.array(pixels)
         h_blocks = height // square_size
         w_blocks = width // square_size
-        reshaped = pixes.reshape(h_blocks, square_size, w_blocks, square_size, -1)
+        reshaped = np_pixels.reshape(h_blocks, square_size, w_blocks, square_size, -1)
 
         for i in range(h_blocks):
             for j in range(w_blocks):
@@ -121,11 +131,10 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        height, width = pixels.shape[:2]
+        height, width = len(pixels), len(pixels[0])
         gsd = math.gcd(height, width)
-        primes = Normalizer.get_primes(gsd)[::-1]
 
-        for size in primes:
+        for size in range(gsd, 1, -1):
             if height % size == 0 and width % size == 0:
                 if Normalizer.check_squares(pixels, size):
                     return size
@@ -134,16 +143,16 @@ class Normalizer:
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        height, width = pixels.shape[:2]
-        for i in range(0, scale_size, height):
+        height, width = len(pixels), len(pixels[0])
+        for i in range(0, height, scale_size):
             row = []
-            for j in range(0, scale_size, width):
-                    row.append(pixels[i][j])
+            for j in range(0, width, scale_size):
+                row.append(pixels[i][j])
             result.append(row)
         return result
 
 
 class NormalizedImage:
-    def __init__(self, pixels):
-        self.pixels = pixels
-        self.height, self.width = pixels.shape[:2]
+    def __init__(self, codels):
+        self.codels = codels
+        self.height, self.width = len(codels), len(codels[0])
