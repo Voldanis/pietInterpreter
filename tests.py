@@ -201,7 +201,7 @@ class TestNormalizerFinal(unittest.TestCase):
         test_img = r"C:\Users\user\Documents\GitHub\pietInterpreter\ДляТестов.png"
         
         if not os.path.exists(test_img):
-            self.skipTest(f"Файл {test_img} не найден, проверь путь!")
+            self.skipTest(f"Файл {test_img} не найден, чекни путь мужик!")
 
         result = Normalizer.normalize(test_img, 0)
 
@@ -220,7 +220,7 @@ class TestNormalizerFinal(unittest.TestCase):
             print(f"\n[LOG] Цвет первого кодела: ({top_left_pixel.r}, {top_left_pixel.g}, {top_left_pixel.b})")
 
         else:
-            self.fail("Нормализатор вернул пустое изображение")
+            self.fail("все оч плохо(")
 
 
 class TestNormalizerEdgeCases(unittest.TestCase):
@@ -268,13 +268,13 @@ class TestProgramState(unittest.TestCase):
         initial_cc = self.state.cc
         self.state.switch(1)
         self.assertNotEqual(self.state.cc, initial_cc)
-        self.state.switch(2) # Четное число переключений возвращает состояние
+        self.state.switch(2) # С четным числом
         self.assertNotEqual(self.state.cc, initial_cc)
 
 
 class TestInterpreterCommands(unittest.TestCase):
     def setUp(self):
-        # Используем __new__ чтобы не грузить реальную картинку в тестах логики
+        # __new__ типа чтобы не грузить рил картинку
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
         self.interp.state = ProgramState()
@@ -298,7 +298,7 @@ class TestInterpreterCommands(unittest.TestCase):
         # Стек: [4, 3, 2, 1], глубина 3, количество 1
         self.interp.stack = [4, 3, 2, 1, 3, 1]
         self.interp._execute_cmd("roll", 0)
-        # Ожидаем, что верхние 3 элемента [3, 2, 1] сдвинутся: [1, 3, 2]
+        # [3, 2, 1] Типа сдвинутся так[1, 3, 2]
         self.assertEqual(self.interp.stack, [4, 1, 3, 2])
 
     def test_not_and_greater(self):
