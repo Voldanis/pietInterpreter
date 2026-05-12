@@ -200,7 +200,7 @@ class PietInterpreter:
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
             block, color = self.get_block(cx, cy)
-            exit_c = self._find_exit_codel(block)
+            exit_c = self.find_exit_codel(block)
             
             # n = количество коделов в блоке
             nnnn = len(block)
