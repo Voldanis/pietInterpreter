@@ -50,7 +50,7 @@ class Pixel:
 
     def __eq__(self, other):
         if not isinstance(other, Pixel):
-            return False
+            return False # возможно стоит сравнивать с массивами/кортежами
         return self.r == other.r and self.g == other.g and self.b == other.b
 
     def __hash__(self):
@@ -74,15 +74,8 @@ class Normalizer:
         with Image.open(image) as img:
             img.load()
             rgb_img = img.convert("RGB")
-            np_pixel_array = np.array(rgb_img)
-            h, w = np_pixel_array.shape[:2]
-            pixel_array = []
-            for x in range(w):
-                col = []
-                for y in range(h):
-                    col.append(Pixel(np_pixel_array[y][x]))
-                pixel_array.append(col)
-            return pixel_array
+            pixel_array = np.array(rgb_img)
+            return [[Pixel(rgb) for rgb in line] for line in pixel_array]
 
     @staticmethod
     def try_normalize_color(color):
@@ -116,7 +109,7 @@ class Normalizer:
             norm_pixels.append([])
             for pixel in col:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
-        return norm_pixels
+        return np.array(norm_pixels)
 
     @staticmethod
     def get_primes(n):
@@ -132,11 +125,11 @@ class Normalizer:
         return [p for p in primes if p <= n]
 
     @staticmethod
-    def check_squares(pixes, square_size):
-        width, height = pixes.shape[:2]
+    def check_squares(pixels, square_size):
+        height, width = pixels.shape[:2]
         h_blocks = height // square_size
         w_blocks = width // square_size
-        reshaped = pixes.reshape(h_blocks, square_size, w_blocks, square_size, -1)
+        reshaped = pixels.reshape(h_blocks, square_size, w_blocks, square_size, -1)
 
         for i in range(h_blocks):
             for j in range(w_blocks):
@@ -147,7 +140,7 @@ class Normalizer:
 
     @staticmethod
     def find_max_codel_size(pixels):
-        width, height = len(pixels), len(pixels[0])
+        height, width = pixels.shape[:2]
         gsd = math.gcd(height, width)
         primes = Normalizer.get_primes(gsd)[::-1]
 
@@ -160,7 +153,7 @@ class Normalizer:
     @staticmethod
     def scale_image(pixels, scale_size):
         result = []
-        width, height = len(pixels), len(pixels[0])
+        height, width = pixels.shape[:2]
         for i in range(0, height, scale_size):
             row = []
             for j in range(0, width, scale_size):

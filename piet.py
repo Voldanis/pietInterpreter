@@ -33,7 +33,7 @@ class ProgramState:
     def switch(self, n):
         states = [CodelCounterState.LEFT,
                   CodelCounterState.RIGHT]
-        change = (n + self.dp.value) % 2
+        change = (n + self.dp.value) % 2 # баг
         self.cc = states[change]
 
 
@@ -50,10 +50,14 @@ class PietInterpreter:
         self.state = ProgramState()
 
         self.palette = [
-            [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
-            [(255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 255, 255), (0, 0, 255), (255, 0, 255)],
-            [(192, 0, 0), (192, 192, 0), (0, 192, 0), (0, 192, 192), (0, 0, 192), (192, 0, 192)]
+            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)), Pixel((192, 255, 255)),
+             Pixel((192, 192, 255)), Pixel((255, 192, 255))],
+            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)), Pixel((0, 255, 255)), Pixel((0, 0, 255)),
+             Pixel((255, 0, 255))],
+            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)), Pixel((0, 192, 192)), Pixel((0, 0, 192)),
+             Pixel((192, 0, 192))]
         ]
+
         self.commands = [
             ["none", "add", "divide", "greater", "duplicate", "in_char"],
             ["push", "subtract", "mod", "pointer", "roll", "out_num"],
@@ -101,15 +105,15 @@ class PietInterpreter:
 
     def _find_exit_codel(self, block):
         # Логика выбора кодела по DP/CC
-        if self.state.dp == DirPointerState.RIGHT: # Right
+        if self.state.dp == DirPointerState.RIGHT:
             mx = max(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
             edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.RIGHT))
-        elif self.state.dp == DirPointerState.DOWN: # Down
+        elif self.state.dp == DirPointerState.DOWN:
             my = max(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
             edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.LEFT))
-        elif self.state.dp == DirPointerState.LEFT: # Left
+        elif self.state.dp == DirPointerState.LEFT:
             mx = min(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
             edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.LEFT))
@@ -151,7 +155,7 @@ class PietInterpreter:
             elif cmd == "switch":
                 if self.stack:
                     t = abs(self.stack.pop())
-                    for _ in range(t): self.state.switch(1)
+                    self.state.switch(t)
             elif cmd == "duplicate":
                 if self.stack: self.stack.append(self.stack[-1])
             elif cmd == "roll":
@@ -195,10 +199,14 @@ class PietInterpreter:
 
             # Определяем направление шага
             dx, dy = 0, 0
-            if self.state.dp == DirPointerState.RIGHT: dx = self.codel_size
-            elif self.state.dp == DirPointerState.DOWN: dy = self.codel_size
-            elif self.state.dp == DirPointerState.LEFT: dx = -self.codel_size
-            elif self.state.dp == DirPointerState.UP: dy = -self.codel_size
+            if self.state.dp == DirPointerState.RIGHT:
+                dx = self.codel_size
+            elif self.state.dp == DirPointerState.DOWN:
+                dy = self.codel_size
+            elif self.state.dp == DirPointerState.LEFT:
+                dx = -self.codel_size
+            elif self.state.dp == DirPointerState.UP:
+                dy = -self.codel_size
 
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
