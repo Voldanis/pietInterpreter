@@ -12,28 +12,11 @@ class ProgramState:
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
-        # img = Normalizer.normalize(image_path, codel_size)
-        # self.pixels = img.codels
-        # self.width = img.width
-        # self.height = img.height
-        # self.codel_size = 1
-        # Загружаем изображение
-        img = Image.open(image_path).convert("RGB")
-        self.width, self.height = img.size
-
-        # Преобразуем в массив массивов объектов Pixel
-        pixel_array = np.array(img)
-        self.pixels = []
-        for y in range(self.height):
-            row = []
-            for x in range(self.width):
-                r = int(pixel_array[y, x, 0])
-                g = int(pixel_array[y, x, 1])
-                b = int(pixel_array[y, x, 2])
-                row.append(Pixel((r, g, b)))
-            self.pixels.append(row)
-        self.codel_size = codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
-
+        img = Normalizer.normalize(image_path, codel_size)
+        self.pixels = img.codels
+        self.width = img.width
+        self.height = img.height
+        self.codel_size = 1
         self.stack = []
         self.state = ProgramState()
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах

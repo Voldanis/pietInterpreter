@@ -115,19 +115,6 @@ class Normalizer:
         return norm_pixels
 
     @staticmethod
-    def get_primes(n):
-        if n > 2000:
-            raise ValueError("n должно быть не больше 2000")
-
-        with open('primes.txt', 'r') as f:
-            first_line = f.readline().replace(",", " ").split()
-            primes = list(map(int, first_line))
-            if n >= 500:
-                second_line = f.readline().replace(",", " ").split()
-                primes.extend(map(int, second_line))
-        return [p for p in primes if p <= n]
-
-    @staticmethod
     def check_squares(pixels, square_size):
         height, width = len(pixels), len(pixels[0])
         np_pixels = np.array(pixels)
@@ -146,9 +133,8 @@ class Normalizer:
     def find_max_codel_size(pixels):
         height, width = len(pixels), len(pixels[0])
         gsd = math.gcd(height, width)
-        primes = Normalizer.get_primes(gsd)[::-1]
 
-        for size in primes:
+        for size in range(gsd, 1, -1):
             if height % size == 0 and width % size == 0:
                 if Normalizer.check_squares(pixels, size):
                     return size
