@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 from normalizer import *
 
+
 class ProgramState:
     def __init__(self):
         self.dp = 0  # 0:R, 1:D, 2:L, 3:U
@@ -15,30 +16,40 @@ class PietInterpreter:
         # self.pixels = img.codels
         # self.width = img.width
         # self.height = img.height
+        # self.codel_size = 1
         # Загружаем изображение
         img = Image.open(image_path).convert("RGB")
         self.width, self.height = img.size
 
-        # Преобразуем в массив массивов трехэлементных кортежей
+        # Преобразуем в массив массивов объектов Pixel
         pixel_array = np.array(img)
         self.pixels = []
         for y in range(self.height):
             row = []
             for x in range(self.width):
-                row.append(tuple(pixel_array[y, x]))
+                r = int(pixel_array[y, x, 0])
+                g = int(pixel_array[y, x, 1])
+                b = int(pixel_array[y, x, 2])
+                row.append(Pixel((r, g, b)))
             self.pixels.append(row)
+        self.codel_size = codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
 
-        self.codel_size = 1
-        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
-        self.step_border = step_border
         self.stack = []
         self.state = ProgramState()
+        # Ограничитель шагов, чтобы не зависнуть вечно при тестах
+        self.step_border = step_border
 
         self.palette = [
-            [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
-            [(255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 255, 255), (0, 0, 255), (255, 0, 255)],
-            [(192, 0, 0), (192, 192, 0), (0, 192, 0), (0, 192, 192), (0, 0, 192), (192, 0, 192)]
+            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
+             Pixel((192, 255, 255)), Pixel((192, 192, 255)), Pixel((255, 192, 255))],
+            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)),
+             Pixel((0, 255, 255)), Pixel((0, 0, 255)), Pixel((255, 0, 255))],
+            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)),
+             Pixel((0, 192, 192)), Pixel((0, 0, 192)), Pixel((192, 0, 192))]
         ]
+        self.black = Pixel((0, 0, 0))
+        self.white = Pixel((255, 255, 255))
+
         self.commands = [
             ["none", "add", "divide", "greater", "duplicate", "in_char"],
             ["push", "subtract", "mod", "pointer", "roll", "out_num"],
@@ -96,10 +107,10 @@ class PietInterpreter:
     def step_border_exist(self):
         return self.step_border >= 0
 
-    def _get_color_coords(self, rgb):
+    def _get_color_coords(self, pixel):
         for l_idx, row in enumerate(self.palette):
-            if rgb in row:
-                return l_idx, row.index(rgb)
+            if pixel in row:
+                return l_idx, row.index(pixel)
         return None
 
     def _get_block(self, start_x, start_y):
@@ -248,7 +259,7 @@ class PietInterpreter:
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
             # Проверка столкновения (стена или черный)
-            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == (0, 0, 0):
+            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
                 if attempts % 2 == 0:
                     self.state.cc = 1 - self.state.cc
                 else:
@@ -259,13 +270,13 @@ class PietInterpreter:
             next_color = self.pixels[ny][nx]
 
             # Обработка белого цвета (скольжение)
-            if next_color == (255, 255, 255):
-                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[ny][nx] == (255, 255, 255):
+            if next_color == self.white:
+                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[ny][nx] == self.white:
                     nx += dx
                     ny += dy
 
                 # Если после белого вылетели в стену или черный
-                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == (0, 0, 0):
+                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
                     # По спецификации: откатываемся назад в белый и меняем направление
                     nx -= dx
                     ny -= dy
