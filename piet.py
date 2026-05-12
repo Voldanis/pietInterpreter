@@ -3,18 +3,15 @@ from enum import Enum
 from normalizer import *
 from collections import deque
 
-
 class DirPointerState(Enum):
     RIGHT = 0
     DOWN = 1
     LEFT = 2
     UP = 3
 
-
 class CodelCounterState(Enum):
     LEFT = 0
     RIGHT = 1
-
 
 class ProgramState:
     def __init__(self):
@@ -26,6 +23,7 @@ class ProgramState:
                   DirPointerState.DOWN,
                   DirPointerState.LEFT,
                   DirPointerState.UP]
+        # Поворот DP на n шагов по часовой стрелке
         change = (n + self.dp.value) % 4
         self.dp = states[change]
 
@@ -34,7 +32,6 @@ class ProgramState:
                   CodelCounterState.RIGHT]
         change = (n + self.cc.value) % 2
         self.cc = states[change]
-
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
@@ -92,17 +89,14 @@ class PietInterpreter:
         queue = deque()
         queue.append((start_x, start_y))
 
-        while len(queue) > 0:
+        while queue:
             x, y = queue.popleft()
-            for dx in range(-1, 2):
-                for dy in range(-1, 2):
-                    if dx == 0 or dy == 0:
-                        nx = x + dx
-                        ny = y + dy
-                        if 0 <= nx < self.width and 0 <= ny < self.height:
-                            if (nx, ny) not in block and self.pixels[ny][nx] == target_color:
-                                block.add((nx, ny))
-                                queue.append((nx, ny))
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    if (nx, ny) not in block and self.pixels[ny][nx] == target_color:
+                        block.add((nx, ny))
+                        queue.append((nx, ny))
         return block, target_color
 
     def find_exit_codel(self, block):
@@ -178,7 +172,8 @@ class PietInterpreter:
                         part = self.stack[-depth:]
                         rest = self.stack[:-depth]
                         shift = count % depth
-                        part = part[-shift:] + part[:-shift]
+                        if shift != 0:
+                            part = part[-shift:] + part[:-shift]
                         self.stack = rest + part
             elif cmd == "in_num":
                 res = sys.stdin.readline().strip()
@@ -205,18 +200,13 @@ class PietInterpreter:
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
             block, color = self.get_block(cx, cy)
-            exit_c = self.find_exit_codel(block)
+            exit_c = self._find_exit_codel(block)
+            
+            # n = количество коделов в блоке
+            nnnn = len(block)
 
-            # НОВЫЙ РАСЧЕТ РАЗМЕРА:
-            # Мы считаем количество УНИКАЛЬНЫХ коделов в блоке.
-            # Это спасет, если картинка чуть-чуть "кривая".
-            unique_codels = set()
-            for px, py in block:
-                unique_codels.add((px // self.codel_size, py // self.codel_size))
-            nnnn = len(unique_codels)
-
-            # Определяем направление шага
             dx, dy = 0, 0
+
             if self.state.dp == DirPointerState.RIGHT:
                 dx = self.codel_size
             elif self.state.dp == DirPointerState.DOWN:
@@ -228,8 +218,10 @@ class PietInterpreter:
 
             nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
+            # Проверка препятствия
+            is_border = not (0 <= nx < self.width and 0 <= ny < self.height)
             # Проверка столкновения (стена или черный)
-            if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
+            if is_border or self.pixels[ny][nx] == self.black:
                 if attempts % 2 == 0:
                     self.state.switch(1)
                 else:
@@ -252,7 +244,6 @@ class PietInterpreter:
                     ny -= dy
                     self.state.pointer(1)
                     attempts += 1
-                    # Важно: cx, cy остаются на входе в белый, просто пробуем другой выход
                     continue
 
                 # Если нашли цвет после белого
@@ -272,9 +263,8 @@ class PietInterpreter:
                 cx, cy = nx, ny
                 attempts = 0
 
-
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
+    if len(sys.argv) < 2:
         print("Usage: python piet.py <file> <*size> <*step_border>")
     else:
         PietInterpreter(sys.argv[1],
