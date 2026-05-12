@@ -30,6 +30,8 @@ Gallery/fibbig.gif
 
 piet.PietInterpreter("Gallery/one.png").run()
 print()
+piet.PietInterpreter("Gallery/three.png").run()
+print()
 piet.PietInterpreter("Gallery/hw1-11.gif").run()
 piet.PietInterpreter("Gallery/hw3-5.gif").run()
 piet.PietInterpreter("Gallery/pc.png").run()

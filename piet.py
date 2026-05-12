@@ -111,19 +111,19 @@ class PietInterpreter:
         if self.state.dp == DirPointerState.RIGHT:
             mx = max(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.RIGHT))
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.RIGHT))
         elif self.state.dp == DirPointerState.DOWN:
             my = max(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.LEFT))
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.LEFT))
         elif self.state.dp == DirPointerState.LEFT:
             mx = min(c[0] for c in block)
             edge = [c for c in block if c[0] == mx]
-            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == DirPointerState.LEFT))
+            edge.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.LEFT))
         else: # Up
             my = min(c[1] for c in block)
             edge = [c for c in block if c[1] == my]
-            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == DirPointerState.RIGHT))
+            edge.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.RIGHT))
         return edge[0]
 
     def _execute_cmd(self, cmd, n):

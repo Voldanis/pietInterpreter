@@ -113,7 +113,7 @@ class Normalizer:
             norm_pixels.append([])
             for pixel in row:
                 norm_pixels[-1].append(Normalizer.try_normalize_pixel(pixel))
-        return np.array(norm_pixels)
+        return norm_pixels
 
     @staticmethod
     def check_squares(pixels, square_size):
@@ -150,7 +150,7 @@ class Normalizer:
             for j in range(0, width, scale_size):
                 row.append(pixels[i][j])
             result.append(row)
-        return np.array(result)
+        return result
 
 
 class NormalizedImage:
