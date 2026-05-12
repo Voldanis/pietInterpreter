@@ -1,7 +1,7 @@
 import sys
 from PIL import Image
 import numpy as np
-
+from normalizer import *
 
 class ProgramState:
     def __init__(self):
@@ -11,6 +11,10 @@ class ProgramState:
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
+        # img = Normalizer.normalize(image_path, codel_size)
+        # self.pixels = img.codels
+        # self.width = img.width
+        # self.height = img.height
         # Загружаем изображение
         img = Image.open(image_path).convert("RGB")
         self.width, self.height = img.size
@@ -24,11 +28,11 @@ class PietInterpreter:
                 row.append(tuple(pixel_array[y, x]))
             self.pixels.append(row)
 
-        self.codel_size = codel_size if codel_size > 0 else PietInterpreter.max_square_size(image_path)
-        self.stack = []
-        self.state = ProgramState()
+        self.codel_size = 1
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.step_border = step_border
+        self.stack = []
+        self.state = ProgramState()
 
         self.palette = [
             [(255, 192, 192), (255, 255, 192), (192, 255, 192), (192, 255, 255), (192, 192, 255), (255, 192, 255)],
