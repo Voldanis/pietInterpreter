@@ -4,29 +4,6 @@ from PIL import Image  # сделать установку в коде
 import numpy as np
 
 
-class ColorsSimple(Enum): # удалить
-    LIGHT_PINK = (255, 192, 192)
-    LIGHT_YELLOW = (255, 255, 192)
-    LIGHT_GREEN = (192, 255, 192)
-    LIGHT_CYAN = (192, 255, 255)
-    LIGHT_BLUE = (192, 192, 255)
-    LIGHT_PURPLE = (255, 192, 255)
-    RED = (255, 0, 0)
-    YELLOW = (255, 255, 0)
-    GREEN = (0, 255, 0)
-    CYAN = (0, 255, 255)
-    BLUE = (0, 0, 255)
-    PURPLE = (255, 0, 255)
-    DARK_RED = (192, 0, 0)
-    DARK_YELLOW = (192, 192, 0)
-    DARK_GREEN = (0, 192, 0)
-    DARK_CYAN = (0, 192, 192)
-    DARK_BLUE = (0, 0, 192)
-    DARK_PURPLE = (192, 0, 192)
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-
-
 class Pixel:
     def __init__(self, colors):
         self._r = colors[0]

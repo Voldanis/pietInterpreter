@@ -1,5 +1,4 @@
 import sys
-import numpy as np
 from enum import Enum
 from normalizer import *
 from collections import deque
@@ -33,7 +32,7 @@ class ProgramState:
     def switch(self, n):
         states = [CodelCounterState.LEFT,
                   CodelCounterState.RIGHT]
-        change = (n + self.cc.value) % 2 # баг исправлен
+        change = (n + self.cc.value) % 2
         self.cc = states[change]
 
 
@@ -43,7 +42,7 @@ class PietInterpreter:
         self.pixels = img.codels
         self.width = img.width
         self.height = img.height
-        self.codel_size = 1
+        self.codel_size = 1  # удалить
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.step_border = step_border
         self.stack = []
@@ -69,7 +68,7 @@ class PietInterpreter:
     # загрузить новое изображение
     def reload(self, image_path, codel_size=-1, step_border=-1):
         img = Normalizer.normalize(image_path, codel_size)
-        self.pixels = img.pixels
+        self.pixels = img.codels
         self.width = img.width
         self.height = img.height
         self.codel_size = 1
@@ -81,29 +80,29 @@ class PietInterpreter:
         return self.step_border >= 0
 
     def _get_color_coords(self, pixel):
-        for l_idx, row in enumerate(self.palette):
+        for row_i, row in enumerate(self.palette):
             if pixel in row:
-                return l_idx, row.index(pixel)
+                return row_i, row.index(pixel)
         return None
 
     def get_block(self, start_x, start_y):
-        """Оптимизированный Flood Fill: шагает сразу по коделам."""
         target_color = self.pixels[start_y][start_x]
         block = set()
-        queue = [(start_x, start_y)]
         block.add((start_x, start_y))
+        queue = deque()
+        queue.append((start_x, start_y))
 
-        idx = 0
-        while idx < len(queue):
-            x, y = queue[idx]
-            idx += 1
-            # Проверяем соседей, отступая на размер кодела
-            for dx, dy in [(self.codel_size, 0), (-self.codel_size, 0), (0, self.codel_size), (0, -self.codel_size)]:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height:
-                    if (nx, ny) not in block and self.pixels[ny][nx] == target_color:
-                        block.add((nx, ny))
-                        queue.append((nx, ny))
+        while len(queue) > 0:
+            x, y = queue.popleft()
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    if dx == 0 or dy == 0:
+                        nx = x + dx
+                        ny = y + dy
+                        if 0 <= nx < self.width and 0 <= ny < self.height:
+                            if (nx, ny) not in block and self.pixels[ny][nx] == target_color:
+                                block.add((nx, ny))
+                                queue.append((nx, ny))
         return block, target_color
 
     def _find_exit_codel(self, block):
