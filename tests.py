@@ -310,6 +310,130 @@ class TestInterpreterCommands(unittest.TestCase):
         self.assertEqual(self.interp.stack, [0])
         
         
+class TestCheckColors(unittest.TestCase):
+    """Набор юнит-тестов для функции check_colors с использованием mock-объектов."""
+
+    @patch('dop_funcs.Image.open')
+    def test_check_colors_ideal_image(self, mock_open):
+        """
+        Тест на идеальное изображение.
+        Проверяет, что картинка, состоящая строго из валидных цветов Piet 
+        (например, чистый красный и белый), возвращает (True, []).
+        """
+        # Создаем mock для изображения: 2x2 пикселя, где верх — красный, низ — белый
+        mock_img = MagicMock()
+        mock_img.convert.return_value = np.array([
+            [[255, 0, 0], [255, 0, 0]],
+            [[255, 255, 255], [255, 255, 255]]
+        ], dtype=np.uint8)
+        mock_open.return_value.__enter__.return_value = mock_img
+
+        result, invalid_colors = check_colors("fake_path.png")
+
+        self.assertTrue(result, "Идеальное изображение должно возвращать True")
+        self.assertEqual(invalid_colors, [], "Список невалидных цветов должен быть пуст")
+
+    @patch('dop_funcs.Image.open')
+    def test_check_colors_noisy_colors(self, mock_open):
+        """
+        Тест на 'грязные' цвета.
+        Проверяет, что если пиксель близок к палитре, но не совпадает ровно 
+        (например, [254, 0, 0] вместо [255, 0, 0]), функция возвращает False 
+        и этот цвет в списке ошибок.
+        """
+        mock_img = MagicMock()
+        mock_img.convert.return_value = np.array([
+            [[254, 0, 0], [255, 0, 0]]
+        ], dtype=np.uint8)
+        mock_open.return_value.__enter__.return_value = mock_img
+
+        result, invalid_colors = check_colors("fake_path.png")
+
+        self.assertFalse(result, "Изображение с шумом должно возвращать False")
+        self.assertIn((254, 0, 0), invalid_colors, "Грязный цвет (254, 0, 0) должен быть обнаружен")
+        self.assertEqual(len(invalid_colors), 1)
+
+    @patch('dop_funcs.Image.open')
+    def test_check_colors_foreign_colors(self, mock_open):
+        """
+        Тест на абсолютно сторонние цвета.
+        Проверяет реакцию на цвета, которых вообще нет в спецификации Piet 
+        (например, серый [128, 128, 128] или коричневый [139, 69, 19]).
+        """
+        mock_img = MagicMock()
+        mock_img.convert.return_value = np.array([
+            [[128, 128, 128], [139, 69, 19]]
+        ], dtype=np.uint8)
+        mock_open.return_value.__enter__.return_value = mock_img
+
+        result, invalid_colors = check_colors("fake_path.png")
+
+        self.assertFalse(result, "Сторонние цвета должны приводить к результату False")
+        self.assertEqual(len(invalid_colors), 2, "Должно быть обнаружено ровно 2 невалидных цвета")
+        self.assertSetEqual(set(invalid_colors), {(128, 128, 128), (139, 69, 19)})
+
+    @patch('dop_funcs.Image.open')
+    def test_check_colors_black_and_white(self, mock_open):
+        """
+        Тест на черно-белое изображение.
+        Проверяет граничные цвета палитры Piet — абсолютный черный (0,0,0) 
+        и абсолютный белый (255,255,255), которые валидны по спецификации.
+        """
+        mock_img = MagicMock()
+        mock_img.convert.return_value = np.array([
+            [[0, 0, 0], [255, 255, 255]]
+        ], dtype=np.uint8)
+        mock_open.return_value.__enter__.return_value = mock_img
+
+        result, invalid_colors = check_colors("fake_path.png")
+
+        self.assertTrue(result, "Черно-белое изображение (границы Piet) должно быть валидным")
+        self.assertEqual(invalid_colors, [])
+
+
+class TestGetAllFilenames(unittest.TestCase):
+    """Набор юнит-тестов для утилиты get_all_filenames с моканьем файловой системы."""
+
+    @patch('dop_funcs.os.path.isfile')
+    @patch('dop_funcs.os.listdir')
+    def test_get_all_filenames_empty_directory(self, mock_listdir, mock_isfile):
+        """
+        Проверка работы с пустой директорией.
+        Утилита должна возвращать пустой список, если в папке ничего нет.
+        """
+        mock_listdir.return_value = []
+        
+        result = get_all_filenames("empty_folder")
+        
+        self.assertEqual(result, [], "Для пустой папки должен возвращаться пустой список")
+
+    @patch('dop_funcs.os.path.isfile')
+    @patch('dop_funcs.os.listdir')
+    def test_get_all_filenames_mixed_extensions_and_dirs(self, mock_listdir, mock_isfile):
+        """
+        Проверка сбора файлов разных расширений и игнорирования подпапок.
+        Ожидается сбор всех файлов (.png, .gif, .txt) с формированием полных путей,
+        при этом элементы, не являющиеся файлами (директории), должны игнорироваться.
+        """
+        # Имитируем содержимое папки: файлы разных типов и одна подпапка
+        mock_listdir.return_value = ['pic.png', 'anim.gif', 'sub_dir', 'readme.txt']
+        
+        # Настраиваем mock для isfile: 'sub_dir' возвращает False (это папка), остальные True
+        def isfile_side_effect(path):
+            return 'sub_dir' not in path
+        mock_isfile.side_effect = isfile_side_effect
+
+        result = get_all_filenames("Gallery")
+
+        # Проверяем, что пути склеились корректно через os.path.join
+        expected = [
+            os.path.join("Gallery", "pic.png"),
+            os.path.join("Gallery", "anim.gif"),
+            os.path.join("Gallery", "readme.txt")
+        ]
+        
+        self.assertEqual(len(result), 3, "Должно быть найдено ровно 3 файла")
+        self.assertListEqual(sorted(result), sorted(expected), "Списки путей файлов должны совпадать")
 
         
 if __name__ == '__main__':
