@@ -1,9 +1,11 @@
 import unittest
 from piet import PietInterpreter, ProgramState, DirPointerState, CodelCounterState
 from normalizer import Normalizer, Pixel
+from unittest.mock import patch, MagicMock
 import numpy as np
 import os
 from PIL import Image
+from dop_funcs import check_colors, get_all_filenames
 
 class TestPietFib(unittest.TestCase):
     def setUp(self):
@@ -315,6 +317,8 @@ class TestInterpreterCommands(unittest.TestCase):
         self.interp.execute_cmd("greater", 0) # 5 > 10?
         self.assertEqual(self.interp.stack, [0])
         
+        
+
         
 if __name__ == '__main__':
     unittest.main()
