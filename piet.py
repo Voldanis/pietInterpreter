@@ -145,18 +145,22 @@ class PietInterpreter:
         if self.state.dp == DirPointerState.RIGHT:
             max_x = max(c[0] for c in block)
             border_codels = [c for c in block if c[0] == max_x]
+            # Вправо: лево - это вверх (min Y), право - это вниз (max Y)
             border_codels.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.RIGHT))
         elif self.state.dp == DirPointerState.DOWN:
             max_y = max(c[1] for c in block)
             border_codels = [c for c in block if c[1] == max_y]
+            # Вниз: лево - это вправо (max X), право - это влево (min X)
             border_codels.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.LEFT))
         elif self.state.dp == DirPointerState.LEFT:
             min_x = min(c[0] for c in block)
             border_codels = [c for c in block if c[0] == min_x]
+            # Влево: лево - это вниз (max Y), право - это вверх (min Y)
             border_codels.sort(key=lambda c: c[1], reverse=(self.state.cc == CodelCounterState.LEFT))
         else:  # Up
             min_y = min(c[1] for c in block)
             border_codels = [c for c in block if c[1] == min_y]
+            # Вверх: лево - это влево (min X), право - это вправо (max X)
             border_codels.sort(key=lambda c: c[0], reverse=(self.state.cc == CodelCounterState.RIGHT))
         return border_codels[0]
 
@@ -208,9 +212,12 @@ class PietInterpreter:
                     self.stack.append(self.stack[-1])
             elif cmd == "roll":
                 if len(self.stack) >= 2:
-                    count = self.stack.pop()
-                    depth = self.stack.pop()
-                    if 0 < depth <= len(self.stack):
+                    depth = self.stack[-2]
+                    count = self.stack[-1]
+                    # Проверяем условия, учитывая, что глубина проверяется относительно стека БЕЗ этих двух аргументов
+                    if 0 < depth <= (len(self.stack) - 2):
+                        self.stack.pop() # удаляем count
+                        self.stack.pop() # удаляем depth
                         part = self.stack[-depth:]
                         rest = self.stack[:-depth]
                         shift = count % depth
