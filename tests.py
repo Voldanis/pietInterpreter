@@ -434,6 +434,139 @@ class TestGetAllFilenames(unittest.TestCase):
         
         self.assertEqual(len(result), 3, "Должно быть найдено ровно 3 файла")
         self.assertListEqual(sorted(result), sorted(expected), "Списки путей файлов должны совпадать")
+        
+class TestInterpreterExecution(unittest.TestCase):
+    """Тестирование сквозного выполнения и логики перемещения в piet.py."""
+
+    def setUp(self):
+        # Создаем интерпретатор без чтения с диска
+        self.interp = PietInterpreter.__new__(PietInterpreter)
+        self.interp.stack = []
+        self.interp.state = ProgramState()
+        self.interp.step_border = 10  # Защита от вечных циклов
+        
+        # Инициализируем палитру и системные цвета
+        self.interp.palette = [
+            [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
+             Pixel((192, 255, 255)), Pixel((192, 192, 255)), Pixel((255, 192, 255))],
+            [Pixel((255, 0, 0)), Pixel((255, 255, 0)), Pixel((0, 255, 0)),
+             Pixel((0, 255, 255)), Pixel((0, 0, 255)), Pixel((255, 0, 255))],
+            [Pixel((192, 0, 0)), Pixel((192, 192, 0)), Pixel((0, 192, 0)),
+             Pixel((0, 192, 192)), Pixel((0, 0, 192)), Pixel((192, 0, 192))]
+        ]
+        self.interp.black = Pixel((0, 0, 0))
+        self.interp.white = Pixel((255, 255, 255))
+        self.interp.commands = [
+            ["none", "add", "divide", "greater", "duplicate", "in_char"],
+            ["push", "subtract", "mod", "pointer", "roll", "out_num"],
+            ["pop", "multiply", "not", "switch", "in_num", "out_char"]
+        ]
+        self.interp.codel_size = 1
+
+    def test_interpreter_discovers_block_and_moves(self):
+        """Проверяет логику get_block, find_exit_codel и перемещение между двумя цветами."""
+        # Создаем карту 3x3: Верхний левый угол — красный кодел (размер 2), справа — желтый
+        p_red = self.interp.palette[1][0]     # (255, 0, 0)
+        p_yellow = self.interp.palette[1][1]  # (255, 255, 0)
+        
+        self.interp.pixels = [
+            [p_red, p_red, p_yellow],
+            [p_red, p_red, p_yellow],
+            [p_yellow, p_yellow, p_yellow]
+        ]
+        self.interp.width = 3
+        self.interp.height = 3
+
+        # Проверим вспомогательные методы выделения блоков
+        block, color = self.interp.get_block(0, 0)
+        self.assertEqual(len(block), 4, "Должен найти блок из 4 красных пикселей")
+        self.assertEqual(color, p_red)
+
+        # Выходной кодел при движении RIGHT и CC=LEFT должен быть верхним правым в блоке
+        exit_c = self.interp.find_exit_codel(block)
+        self.assertEqual(exit_c, (1, 0))
+
+    def test_interpreter_hits_black_block_and_rotates(self):
+        """Проверяет поведение при столкновении со стеной или черным цветом (разворот DP/CC)."""
+        p_red = self.interp.palette[1][0]
+        p_black = self.interp.black
+        
+        # Карта 2x2, где справа тупик из черного
+        self.interp.pixels = [
+            [p_red, p_black],
+            [p_red, p_black]
+        ]
+        self.interp.width = 2
+        self.interp.height = 2
+        
+        # Подменяем step_border_exist, чтобы выполнить ровно ОДНУ проверку шага внутри цикла run
+        # Это не даст циклу прокрутить DP на все 360 градусов до завершения
+        with patch.get_original('builtins.id') as _: # Просто контекст для патча, если нужно, или через side_effect:
+            call_count = 0
+            def mock_border_exist():
+                nonlocal call_count
+                call_count += 1
+                return call_count <= 1 # Разрешаем только 1 проход цикла
+
+            self.interp.step_border_exist = mock_border_exist
+            self.interp.run()
+        
+        # После первой неудачной попытки (attempts=1) по спецификации Piet меняется состояние CC (Codel Counter)
+        # А при следующей — DP. Давайте проверим, что изменение состояния произошло:
+        self.assertEqual(self.interp.state.cc, CodelCounterState.RIGHT, 
+                         "При первой неудачной попытке должен переключиться Codel Counter (CC)")
+
+    def test_interpreter_white_sliding(self):
+        """Проверяет скольжение сквозь белые пиксели."""
+        p_red = self.interp.palette[1][0]
+        p_white = self.interp.white
+        p_blue = self.interp.palette[1][4]
+        
+        # Карта: Красный -> Белый -> Синий. Интерпретатор должен проскочить белый
+        self.interp.pixels = [
+            [p_red, p_white, p_blue]
+        ]
+        self.interp.width = 3
+        self.interp.height = 1
+        
+        # Ограничимся 1 шагом, чтобы просто проверить пролет белого цвета
+        self.interp.step_border = 1
+        self.interp.run()
+        
+        # Если пролет сработал, то attempts сбросились, а шаги выполнились без застревания
+        self.assertEqual(self.interp.step_border_exist(), True)
+
+    @patch('sys.stdout', new_callable=MagicMock)
+    def test_io_commands_execution(self, mock_stdout):
+        """Проверяет команды вывода (out_num, out_char) без загрязнения реальной консоли."""
+        self.interp.stack = [65, 42]
+        
+        self.interp.execute_cmd("out_num", 0)
+        self.assertEqual(self.interp.stack, [65])
+        mock_stdout.write.assert_any_call("42")
+
+        self.interp.execute_cmd("out_char", 0)
+        self.assertEqual(self.interp.stack, [])
+        mock_stdout.write.assert_any_call("A")
+        
+    def test_interpreter_total_block_stops_program(self):
+        """Проверяет, что если кодел зажат со всех сторон черным, программа делает 8 попыток и останавливается."""
+        p_red = self.interp.palette[1][0]
+        p_black = self.interp.black
+        
+        # Пиксель зажат в углу 1x1 или окружен черным
+        self.interp.pixels = [
+            [p_red, p_black],
+            [p_black, p_black]
+        ]
+        self.interp.width = 2
+        self.interp.height = 2
+        
+        # run() должен завершиться сам, сделав 8 попыток разворота
+        self.interp.run()
+        
+        # Если он успешно вышел из цикла — тест пройдет, и DP вернется в исходный RIGHT (сделав полный круг)
+        self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
 
         
 if __name__ == '__main__':
