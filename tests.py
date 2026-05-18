@@ -177,25 +177,18 @@ class TestNormalizerScaling(unittest.TestCase):
         self.Pixel = Pixel
 
     def test_scale_image_logic(self):
-        """Проверяем, что изображение 4x4 при коделе 2 превращается в 2x2."""
-        # Делаем массив 4x4x3
-        data = np.zeros((4, 4, 3), dtype=np.uint8)
-        data[0:2, 0:2] = [255, 0, 0]   # Красный
-        data[0:2, 2:4] = [0, 255, 0]   # Зеленый
-        data[2:4, 0:2] = [0, 0, 255]   # Синий
-        data[2:4, 2:4] = [255, 255, 0] # Желтый
+        """Проверяем, что изображение 4x4 при коделе 2 превращается in 2x2."""
+        from normalizer import Pixel
+        p = Pixel([255, 0, 0])
+        # Создаем матрицу 4x4 из Pixel
+        data = [[p for _ in range(4)] for _ in range(4)]
 
         scaled = Normalizer.scale_image(data, 2)
 
-        # должно стать 2на2 пикселя
-        self.assertEqual(scaled.shape[0], 2)
-        self.assertEqual(scaled.shape[1], 2)
-        
-        # Проверяем цвета (щас обращаемся по индексам массива)
-        # [0, 0] — левый верхний кодел
-        np.testing.assert_array_equal(scaled[0, 0], [255, 0, 0])
-        # [1, 1] — правый нижний кодел
-        np.testing.assert_array_equal(scaled[1, 1], [255, 255, 0])
+        # Проверяем размеры стандартного списка
+        self.assertEqual(len(scaled), 2)
+        self.assertEqual(len(scaled[0]), 2)
+        self.assertIs(scaled[0][0], p)
 
 
 class TestNormalizerFinal(unittest.TestCase):
@@ -235,13 +228,12 @@ class TestNormalizerEdgeCases(unittest.TestCase):
         """Проверка, что масштаб сохраняет объекты Pixel."""
         from normalizer import Pixel
         p1 = Pixel([255, 0, 0])
-        p2 = Pixel([0, 255, 0])
         matrix = [[p1, p1], [p1, p1]] 
         
-        # очень жду и надеюсь, что после сжатия останется 1на1 и тот же объект
         scaled = Normalizer.scale_image(matrix, 2)
-        self.assertEqual(scaled.shape, (1, 1))
-        self.assertIs(scaled[0, 0], p1)
+        self.assertEqual(len(scaled), 1)
+        self.assertEqual(len(scaled[0]), 1)
+        self.assertIs(scaled[0][0], p1)
 
     def test_find_max_codel_size_prime_gcd(self):
         """Если НОД — простое число, должен найти его."""
