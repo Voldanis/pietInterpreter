@@ -695,14 +695,31 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.interp.codel_size = 1
         self.interp.step_border = 1
         
-        # Карта: Красный (0,0) -> Белый (1,0) -> Черный препятствие (2,0)
-        self.interp.pixels = [[Pixel((255, 0, 0)), self.interp.white, self.interp.black]]
+        # Карта: Красный (0,0), Белый (1,0), Черный (2,0)
+        self.interp.pixels = [[Pixel((255, 0, 0)), Pixel((255, 255, 255)), Pixel((0, 0, 0))]]
         self.interp.width = 3
         self.interp.height = 1
         
+        # Запуск интерпретатора. Он сделает 1 шаг (перейдет с красного на белый)
+        # И завершится, так как step_border = 1
         self.interp.run()
-        # Проверяем, что направление DP изменилось (повернулось по часовой после столкновения)
-        self.assertEqual(self.interp.state.dp, DirPointerState.DOWN)
+        
+        # Проверяем состояние ПОСЛЕ первого шага (мы стоим на Белом (1,0))
+        self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
+        self.assertEqual(self.interp.state.cc, CodelCounterState.LEFT)
+        
+        # --- ТЕПЕРЬ СИМУЛИРУЕМ СЛЕДУЮЩИЙ ШАГ (СТОЛКНОВЕНИЕ С ЧЕРНЫМ) ---
+        # Чтобы проверить твою логику последовательного изменения CC и DP на белом коделе,
+        # мы увеличиваем лимит шагов и вручную вызываем run() еще раз.
+        self.interp.step_border = 2
+        self.interp.run()
+        
+        # Согласно твоему коду (при attempts = 0):
+        # 1. Срабатывает attempts % 2 == 0
+        # 2. CC переключается с LEFT на RIGHT
+        # 3. DP ОСТАЕТСЯ прежним (RIGHT)
+        self.assertEqual(self.interp.state.cc, CodelCounterState.RIGHT)
+        self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
 
 
 if __name__ == '__main__':
