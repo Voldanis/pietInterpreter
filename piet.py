@@ -12,6 +12,9 @@ class DirPointerState(Enum):
 
     @staticmethod
     def dp_to_delta(dp, cod_sise=1):
+        """
+         Получить координаты смещения по направлению
+        """
         if dp == DirPointerState.RIGHT:
             return cod_sise, 0
         elif dp == DirPointerState.DOWN:
@@ -28,6 +31,9 @@ class CodelCounterState(Enum):
 
 
 class ProgramState:
+    """
+    Класс, в котором удобно хранить dp и cc, а также выполнять операции pointer и switch
+    """
     def __init__(self, dp=DirPointerState.RIGHT, cc=CodelCounterState.LEFT):
         self.dp = dp
         self.cc = cc
@@ -51,10 +57,16 @@ class ProgramState:
 
 
 class WhiteStates:
+    """
+    Нужен, чтобы при блуждании в белой зоне останавливать программу при зацикливании
+    """
     def __init__(self):
         self.states = dict()
 
     def add_state(self, x, y, state):
+        """
+        Сохраняет текущее состояние, чтобы проверить, находились ли мы в нем в прошлом
+        """
         if x not in self.states.keys():
             self.states[x] = dict()
         if y not in self.states[x].keys():
@@ -62,6 +74,9 @@ class WhiteStates:
         self.states[x][y].append(state.__copy__())
 
     def contains(self, x, y, state):
+        """
+        Проверить, находились ли мы в данном состоянии в данных координатах
+        """
         if x not in self.states.keys() or y not in self.states[x].keys():
             return False
         for check in self.states[x][y]:
@@ -102,8 +117,10 @@ class PietInterpreter:
             ["pop", "multiply", "not", "switch", "in_num", "out_char"]
         ]
 
-    # загрузить новое изображение
     def reload(self, image_path, codel_size=-1, step_border=-1):
+        """
+        Загружает новое изображение
+        """
         img = Normalizer.normalize(image_path, codel_size)
         self.pixels = img.codels
         self.width = img.width
@@ -114,15 +131,25 @@ class PietInterpreter:
         self.state = ProgramState()
 
     def step_border_exist(self):
+        """
+        Проверить, передан ли в аргументах step_border
+        """
         return self.step_border >= 0
 
     def get_color_coords(self, pixel):
+        """
+        Получить индексы по которым можно получить данный pixel из palette
+        """
         for row_i, row in enumerate(self.palette):
             if pixel in row:
                 return row_i, row.index(pixel)
         return None
 
     def get_block(self, start_x, start_y):
+        """
+        Найти цветовой блок по содержащемуся в нем коделу.
+        С помощью поиска в ширину находит все смежные коделы.
+        """
         target_color = self.pixels[start_y][start_x]
         if target_color == self.white:
             return {(start_x, start_y)}, target_color
@@ -142,6 +169,9 @@ class PietInterpreter:
         return block, target_color
 
     def find_exit_codel(self, block):
+        """
+        Найти кодел из которого должен выйти интерпретатор в направлении dp
+        """
         if self.state.dp == DirPointerState.RIGHT:
             max_x = max(c[0] for c in block)
             border_codels = [c for c in block if c[0] == max_x]
@@ -249,9 +279,11 @@ class PietInterpreter:
         step = 0
         white_states = WhiteStates()
 
+        # Проходимся по картине, пока не попали в тупик или не выполнили слишком много шагов
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
             block, color = self.get_block(x, y)
+            # Если мы на белом блоке, занести текущее состояние, чтобы потом проверить, не ходим ли мы кругами
             if color == self.white:
                 if white_states.contains(x, y, self.state):
                     return
@@ -260,7 +292,6 @@ class PietInterpreter:
             exit_codel = self.find_exit_codel(block)
             dx, dy = DirPointerState.dp_to_delta(self.state.dp)
             new_x, new_y = exit_codel[0] + dx, exit_codel[1] + dy
-
 
             # Проверка препятствия
             is_border = not (0 <= new_x < self.width and 0 <= new_y < self.height)
@@ -273,6 +304,7 @@ class PietInterpreter:
                 continue
 
             next_color = self.pixels[new_y][new_x]
+            # обработка белого цвета
             if next_color == self.white:
                 if color != self.white:
                     white_states.clear()
