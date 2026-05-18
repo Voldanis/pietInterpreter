@@ -271,59 +271,46 @@ class TestProgramState(unittest.TestCase):
 
 class TestInterpreterCommands(unittest.TestCase):
     def setUp(self):
-        # __new__ типа чтобы не грузить рил картинку
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
         self.interp.state = ProgramState()
 
     def test_arithmetic(self):
-        """Проверка add, subtract, multiply, divide, mod."""
         self.interp.stack = [10, 3]
         self.interp.execute_cmd("add", 0)
         self.assertEqual(self.interp.stack, [13])
 
         self.interp.stack = [10, 3]
-        self.interp.execute_cmd("subtract", 0) # 10 - 3
+        self.interp.execute_cmd("subtract", 0)
         self.assertEqual(self.interp.stack, [7])
 
         self.interp.stack = [10, 3]
-        self.interp.execute_cmd("divide", 0) # 10 // 3
+        self.interp.execute_cmd("divide", 0)
         self.assertEqual(self.interp.stack, [3])
 
     def test_roll(self):
-        """Проверка сложной команды roll."""
-        # Стек: [4, 3, 2, 1], глубина 3, количество 1
         self.interp.stack = [4, 3, 2, 1, 3, 1]
         self.interp.execute_cmd("roll", 0)
-        # [3, 2, 1] Типа сдвинутся так[1, 3, 2]
         self.assertEqual(self.interp.stack, [4, 1, 3, 2])
 
     def test_not_and_greater(self):
-        """Проверка логических команд."""
         self.interp.stack = [5]
         self.interp.execute_cmd("not", 0)
-        self.assertEqual(self.interp.stack, [0]) # Not 5 = 0
+        self.assertEqual(self.interp.stack, [0])
 
         self.interp.stack = [0]
         self.interp.execute_cmd("not", 0)
-        self.assertEqual(self.interp.stack, [1]) # Not 0 = 1
+        self.assertEqual(self.interp.stack, [1])
 
         self.interp.stack = [5, 10]
-        self.interp.execute_cmd("greater", 0) # 5 > 10?
+        self.interp.execute_cmd("greater", 0)
         self.assertEqual(self.interp.stack, [0])
         
         
 class TestCheckColors(unittest.TestCase):
-    """Набор юнит-тестов для функции check_colors с использованием mock-объектов."""
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_ideal_image(self, mock_open):
-        """
-        Тест на идеальное изображение.
-        Проверяет, что картинка, состоящая строго из валидных цветов Piet 
-        (например, чистый красный и белый), возвращает (True, []).
-        """
-        # Создаем mock для изображения: 2x2 пикселя, где верх — красный, низ — белый
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[255, 0, 0], [255, 0, 0]],
@@ -338,12 +325,6 @@ class TestCheckColors(unittest.TestCase):
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_noisy_colors(self, mock_open):
-        """
-        Тест на 'грязные' цвета.
-        Проверяет, что если пиксель близок к палитре, но не совпадает ровно 
-        (например, [254, 0, 0] вместо [255, 0, 0]), функция возвращает False 
-        и этот цвет в списке ошибок.
-        """
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[254, 0, 0], [255, 0, 0]]
@@ -358,11 +339,6 @@ class TestCheckColors(unittest.TestCase):
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_foreign_colors(self, mock_open):
-        """
-        Тест на абсолютно сторонние цвета.
-        Проверяет реакцию на цвета, которых вообще нет в спецификации Piet 
-        (например, серый [128, 128, 128] или коричневый [139, 69, 19]).
-        """
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[128, 128, 128], [139, 69, 19]]
@@ -377,11 +353,6 @@ class TestCheckColors(unittest.TestCase):
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_black_and_white(self, mock_open):
-        """
-        Тест на черно-белое изображение.
-        Проверяет граничные цвета палитры Piet — абсолютный черный (0,0,0) 
-        и абсолютный белый (255,255,255), которые валидны по спецификации.
-        """
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[0, 0, 0], [255, 255, 255]]
@@ -395,15 +366,10 @@ class TestCheckColors(unittest.TestCase):
 
 
 class TestGetAllFilenames(unittest.TestCase):
-    """Набор юнит-тестов для утилиты get_all_filenames с моканьем файловой системы."""
 
     @patch('dop_funcs.os.path.isfile')
     @patch('dop_funcs.os.listdir')
     def test_get_all_filenames_empty_directory(self, mock_listdir, mock_isfile):
-        """
-        Проверка работы с пустой директорией.
-        Утилита должна возвращать пустой список, если в папке ничего нет.
-        """
         mock_listdir.return_value = []
         
         result = get_all_filenames("empty_folder")
@@ -413,22 +379,14 @@ class TestGetAllFilenames(unittest.TestCase):
     @patch('dop_funcs.os.path.isfile')
     @patch('dop_funcs.os.listdir')
     def test_get_all_filenames_mixed_extensions_and_dirs(self, mock_listdir, mock_isfile):
-        """
-        Проверка сбора файлов разных расширений и игнорирования подпапок.
-        Ожидается сбор всех файлов (.png, .gif, .txt) с формированием полных путей,
-        при этом элементы, не являющиеся файлами (директории), должны игнорироваться.
-        """
-        # Имитируем содержимое папки: файлы разных типов и одна подпапка
         mock_listdir.return_value = ['pic.png', 'anim.gif', 'sub_dir', 'readme.txt']
         
-        # Настраиваем mock для isfile: 'sub_dir' возвращает False (это папка), остальные True
         def isfile_side_effect(path):
             return 'sub_dir' not in path
         mock_isfile.side_effect = isfile_side_effect
 
         result = get_all_filenames("Gallery")
 
-        # Проверяем, что пути склеились корректно через os.path.join
         expected = [
             os.path.join("Gallery", "pic.png"),
             os.path.join("Gallery", "anim.gif"),
@@ -439,16 +397,13 @@ class TestGetAllFilenames(unittest.TestCase):
         self.assertListEqual(sorted(result), sorted(expected), "Списки путей файлов должны совпадать")
         
 class TestInterpreterExecution(unittest.TestCase):
-    """Тестирование сквозного выполнения и логики перемещения в piet.py."""
 
     def setUp(self):
-        # Создаем интерпретатор без чтения с диска
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
         self.interp.state = ProgramState()
-        self.interp.step_border = 10  # Защита от вечных циклов
+        self.interp.step_border = 10
         
-        # Инициализируем палитру и системные цвета
         self.interp.palette = [
             [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
              Pixel((192, 255, 255)), Pixel((192, 192, 255)), Pixel((255, 192, 255))],
@@ -467,10 +422,8 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.codel_size = 1
 
     def test_interpreter_discovers_block_and_moves(self):
-        """Проверяет логику get_block, find_exit_codel и перемещение между двумя цветами."""
-        # Создаем карту 3x3: Верхний левый угол — красный кодел (размер 2), справа — желтый
-        p_red = self.interp.palette[1][0]     # (255, 0, 0)
-        p_yellow = self.interp.palette[1][1]  # (255, 255, 0)
+        p_red = self.interp.palette[1][0]
+        p_yellow = self.interp.palette[1][1]
         
         self.interp.pixels = [
             [p_red, p_red, p_yellow],
@@ -480,25 +433,17 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.width = 3
         self.interp.height = 3
 
-        # Проверим вспомогательные методы выделения блоков
         block, color = self.interp.get_block(0, 0)
         self.assertEqual(len(block), 4, "Должен найти блок из 4 красных пикселей")
         self.assertEqual(color, p_red)
 
-        # Выходной кодел при движении RIGHT и CC=LEFT должен быть верхним правым в блоке
         exit_c = self.interp.find_exit_codel(block)
         self.assertEqual(exit_c, (1, 0))
 
     def test_interpreter_hits_black_block_and_rotates(self):
-        """
-        Проверяет поведение при полной блокировке черным цветом/стенами.
-        Интерпретатор должен выполнить 8 циклов смены направления DP/CC
-        и штатно завершить метод run() без зацикливания.
-        """
         p_red = self.interp.palette[1][0]
         p_black = self.interp.black
         
-        # Размещаем красный пиксель в полной изоляции (вокруг черные пиксели и границы)
         self.interp.pixels = [
             [p_red, p_black],
             [p_black, p_black]
@@ -506,45 +451,34 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.width = 2
         self.interp.height = 2
         
-        # Восстанавливаем оригинальное поведение лимита (по умолчанию)
         self.interp.step_border_exist = lambda: True
 
-        # Запускаем интерпретатор. 
-        # Если логика Piet верна, он сделает 8 попыток, DP сделает полный круг (360°),
-        # цикл while True прервется по условию attempts >= 8, и метод run() успешно завершится.
         try:
             self.interp.run()
         except Exception as e:
             self.fail(f"Метод run() упал с ошибкой при обработке черных блоков: {e}")
 
-        # Проверяем, что после 8 поворотов указатель DP вернулся в исходное положение RIGHT,
-        # сделав полный оборот, что подтверждает выполнение всех 8 итераций алгоритма разворота.
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT, 
                          "После полной блокировки и 8 попыток DP должен вернуться в исходную позицию")
 
     def test_interpreter_white_sliding(self):
-        """Проверяет скольжение сквозь белые пиксели."""
         p_red = self.interp.palette[1][0]
         p_white = self.interp.white
         p_blue = self.interp.palette[1][4]
         
-        # Карта: Красный -> Белый -> Синий. Интерпретатор должен проскочить белый
         self.interp.pixels = [
             [p_red, p_white, p_blue]
         ]
         self.interp.width = 3
         self.interp.height = 1
         
-        # Ограничимся 1 шагом, чтобы просто проверить пролет белого цвета
         self.interp.step_border = 1
         self.interp.run()
         
-        # Если пролет сработал, то attempts сбросились, а шаги выполнились без застревания
         self.assertEqual(self.interp.step_border_exist(), True)
 
     @patch('sys.stdout', new_callable=MagicMock)
     def test_io_commands_execution(self, mock_stdout):
-        """Проверяет команды вывода (out_num, out_char) без загрязнения реальной консоли."""
         self.interp.stack = [65, 42]
         
         self.interp.execute_cmd("out_num", 0)
@@ -556,11 +490,9 @@ class TestInterpreterExecution(unittest.TestCase):
         mock_stdout.write.assert_any_call("A")
         
     def test_interpreter_total_block_stops_program(self):
-        """Проверяет, что если кодел зажат со всех сторон черным, программа делает 8 попыток и останавливается."""
         p_red = self.interp.palette[1][0]
         p_black = self.interp.black
         
-        # Пиксель зажат в углу 1x1 или окружен черным
         self.interp.pixels = [
             [p_red, p_black],
             [p_black, p_black]
@@ -568,13 +500,9 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.width = 2
         self.interp.height = 2
         
-        # run() должен завершиться сам, сделав 8 попыток разворота
         self.interp.run()
         
-        # Если он успешно вышел из цикла — тест пройдет, и DP вернется в исходный RIGHT (сделав полный круг)
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
-
-        
 
         
         
@@ -582,22 +510,19 @@ class TestNormalizerSupplementary(unittest.TestCase):
     def test_pixel_magic_methods(self):
         p1 = Pixel([255, 0, 0])
         p2 = Pixel([255, 0, 0])
-        # Покрытие __str__, __hash__ и __eq__ с не-Pixel объектом
         self.assertEqual(str(p1), "(255, 0, 0)")
         self.assertEqual(hash(p1), hash((255, 0, 0)))
         self.assertFalse(p1 == [255, 0, 0])
 
     def test_check_squares_false(self):
-        # Создаем неоднородную структуру для возврата False в check_squares
         p_red = Pixel([255, 0, 0])
         p_blue = Pixel([0, 0, 255])
         pixels = [
             [p_red, p_red],
             [p_red, p_blue]
         ]
-        # Проверяем напрямую через find_max_codel_size, который вызовет check_squares
         size = Normalizer.find_max_codel_size(pixels)
-        self.assertEqual(size, 1) # Должен упасть до 1, так как на размере 2 check_squares вернет False
+        self.assertEqual(size, 1)
         
         
 class TestPietInterpreterAdvanced(unittest.TestCase):
@@ -607,7 +532,6 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.interp.state = ProgramState()
 
     def test_execute_cmd_empty_stack_resilience(self):
-        """Проверяем, что команды не падают и корректно игнорируются при пустом стеке."""
         commands_to_test = ["pop", "add", "subtract", "multiply", "divide", 
                             "mod", "not", "greater", "pointer", "switch", "duplicate", "roll"]
         for cmd in commands_to_test:
@@ -618,7 +542,6 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.stack, [])
 
     def test_execute_cmd_division_by_zero(self):
-        """Проверка защиты от деления на ноль для divide и mod."""
         self.interp.stack = [10, 0]
         self.interp.execute_cmd("divide", 0)
         self.assertEqual(self.interp.stack, [10, 0], "Деление на ноль должно игнорироваться")
@@ -628,31 +551,25 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.stack, [10, 0], "Взятие остатка по модулю 0 должно игнорироваться")
 
     def test_execute_cmd_invalid_roll(self):
-        """Проверка roll с недопустимой глубиной."""
-        self.interp.stack = [1, 2, 3, -1, 1] # глубина -1
+        self.interp.stack = [1, 2, 3, -1, 1]
         self.interp.execute_cmd("roll", 0)
         self.assertEqual(self.interp.stack, [1, 2, 3, -1, 1])
 
-        self.interp.stack = [1, 2, 3, 10, 1] # глубина 10 при размере стека 3
+        self.interp.stack = [1, 2, 3, 10, 1]
         self.interp.execute_cmd("roll", 0)
         self.assertEqual(self.interp.stack, [1, 2, 3, 10, 1])
 
     @patch('sys.stdin')
     def test_execute_cmd_io_input(self, mock_stdin):
-        """Тестирование ввода чисел и символов через stdin."""
-        # Тест in_num
         mock_stdin.readline.return_value = "42\n"
         self.interp.execute_cmd("in_num", 0)
         self.assertEqual(self.interp.stack, [42])
 
-        # Тест in_char
         mock_stdin.read.return_value = "Z"
         self.interp.execute_cmd("in_char", 0)
-        self.assertEqual(self.interp.stack, [42, 90]) # ord('Z') = 90
+        self.assertEqual(self.interp.stack, [42, 90])
 
     def test_interpreter_reload(self):
-        """Проверяем работоспособность метода reload."""
-        # Мокаем Normalizer.normalize, чтобы не читать файлы с диска
         with patch('normalizer.Normalizer.normalize') as mock_norm:
             mock_img = MagicMock()
             mock_img.codels = [[Pixel([0, 0, 0])]]
@@ -665,59 +582,39 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
             self.assertEqual(self.interp.width, 1)
 
     def test_find_exit_codel_all_directions(self):
-        """Полноценное покрытие всех веток направлений (DOWN, LEFT, UP) в find_exit_codel."""
-        block = {(0, 0), (1, 0), (0, 1), (1, 1)} # Квадратный блок 2x2
+        block = {(0, 0), (1, 0), (0, 1), (1, 1)}
         
-        # 1. Тест DOWN (Вниз). 
-        # Лево — это направо (max X = 1). Право — это налево (min X = 0).
         self.interp.state.dp = DirPointerState.DOWN
         self.interp.state.cc = CodelCounterState.LEFT
         self.assertEqual(self.interp.find_exit_codel(block), (1, 1))
         
-        # 2. Тест LEFT (Влево).
-        # Лево — это вниз (max Y = 1). Ожидаем самый нижний из левых коделов.
         self.interp.state.dp = DirPointerState.LEFT
         self.interp.state.cc = CodelCounterState.LEFT
-        self.assertEqual(self.interp.find_exit_codel(block), (0, 1)) # Было (0, 0) -> ИСПРАВЛЕНО
+        self.assertEqual(self.interp.find_exit_codel(block), (0, 1))
         
-        # 3. Тест UP (Вверх).
-        # Смотрим вверх. Лево — это влево (min X = 0). Право — это вправо (max X = 1).
-        # В тесте стоит CodelCounterState.RIGHT (Право), значит берем max X.
         self.interp.state.dp = DirPointerState.UP
         self.interp.state.cc = CodelCounterState.RIGHT
         self.assertEqual(self.interp.find_exit_codel(block), (1, 0))
 
     def test_white_sliding_hit_obstacle(self):
-        """Проверка отката назад, если после белого цвета интерпретатор встретил черный/границу."""
-        self.interp.palette = [[Pixel((255, 0, 0))]] # Упрощенная палитра
+        self.interp.palette = [[Pixel((255, 0, 0))]]
         self.interp.black = Pixel((0, 0, 0))
         self.interp.white = Pixel((255, 255, 255))
         self.interp.codel_size = 1
         self.interp.step_border = 1
         
-        # Карта: Красный (0,0), Белый (1,0), Черный (2,0)
         self.interp.pixels = [[Pixel((255, 0, 0)), Pixel((255, 255, 255)), Pixel((0, 0, 0))]]
         self.interp.width = 3
         self.interp.height = 1
         
-        # Запуск интерпретатора. Он сделает 1 шаг (перейдет с красного на белый)
-        # И завершится, так как step_border = 1
         self.interp.run()
         
-        # Проверяем состояние ПОСЛЕ первого шага (мы стоим на Белом (1,0))
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
         self.assertEqual(self.interp.state.cc, CodelCounterState.LEFT)
         
-        # --- ТЕПЕРЬ СИМУЛИРУЕМ СЛЕДУЮЩИЙ ШАГ (СТОЛКНОВЕНИЕ С ЧЕРНЫМ) ---
-        # Чтобы проверить твою логику последовательного изменения CC и DP на белом коделе,
-        # мы увеличиваем лимит шагов и вручную вызываем run() еще раз.
         self.interp.step_border = 2
         self.interp.run()
         
-        # Согласно твоему коду (при attempts = 0):
-        # 1. Срабатывает attempts % 2 == 0
-        # 2. CC переключается с LEFT на RIGHT
-        # 3. DP ОСТАЕТСЯ прежним (RIGHT)
         self.assertEqual(self.interp.state.cc, CodelCounterState.RIGHT)
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
 
