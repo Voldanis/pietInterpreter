@@ -22,10 +22,8 @@ piet.PietInterpreter("Gallery/tetris_big.png").run()
 piet.PietInterpreter("Gallery/hw6_big.png").run()
 piet.PietInterpreter("Gallery/ILoveYouLaura.png").run()
 piet.PietInterpreter("Gallery/two_bmp.bmp").run()
+piet.PietInterpreter("Gallery/white.png").run()
 '''
-
-
-
 
 
 '''
@@ -40,36 +38,3 @@ Gallery/helloworld-cmb-sm.png
 #     print(picture)
 #     print(check_colors(picture))
 #print(check_pixels_in_allowed_colors("Gallery/one_bright.png"))
-
-'''
-    def get_border_axis(self):
-        if self.state.dp == DirPointerState.RIGHT or self.state.dp == DirPointerState.LEFT:
-            return 0
-        return 1
-        
-    def find_block_border(self, axis, block):
-        if self.state.dp == DirPointerState.RIGHT:
-            border_coord = max(codel[axis] for codel in block)
-        elif self.state.dp == DirPointerState.DOWN:
-            border_coord = max(codel[axis] for codel in block)
-        elif self.state.dp == DirPointerState.LEFT:
-            border_coord = min(codel[axis] for codel in block)
-        else:  # Up
-            border_coord = min(codel[axis] for codel in block)
-        border = [codel for codel in block if codel[axis] == border_coord]
-        return border
-    
-    def find_exit_codel_by_cc(self, border):
-        return 
-        
-        
-    
-
-bottom = []
-for i in range(shift):
-bottom.append(roll.pop())
-        
-        
-    
-
-'''

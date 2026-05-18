@@ -33,9 +33,6 @@ class Pixel:
     def __hash__(self):
         return hash((self.r, self.g, self.b))
 
-    def as_tuple(self):
-        return (self.r, self.g, self.b)
-
 
 class Normalizer:
     @staticmethod
