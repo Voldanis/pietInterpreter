@@ -599,6 +599,133 @@ class TestMainScriptExecution(unittest.TestCase):
         
         # Проверяем, что метод run() интерпретатора действительно дергался в main.py
         self.assertTrue(mock_run.called, "Метод run() интерпретатора должен быть вызван в main.py")
+        
+        
+class TestNormalizerSupplementary(unittest.TestCase):
+    def test_pixel_magic_methods(self):
+        p1 = Pixel([255, 0, 0])
+        p2 = Pixel([255, 0, 0])
+        # Покрытие __str__, __hash__ и __eq__ с не-Pixel объектом
+        self.assertEqual(str(p1), "(255, 0, 0)")
+        self.assertEqual(hash(p1), hash((255, 0, 0)))
+        self.assertFalse(p1 == [255, 0, 0])
+
+    def test_check_squares_false(self):
+        # Создаем неоднородную структуру для возврата False в check_squares
+        p_red = Pixel([255, 0, 0])
+        p_blue = Pixel([0, 0, 255])
+        pixels = [
+            [p_red, p_red],
+            [p_red, p_blue]
+        ]
+        # Проверяем напрямую через find_max_codel_size, который вызовет check_squares
+        size = Normalizer.find_max_codel_size(pixels)
+        self.assertEqual(size, 1) # Должен упасть до 1, так как на размере 2 check_squares вернет False
+        
+        
+class TestPietInterpreterAdvanced(unittest.TestCase):
+    def setUp(self):
+        self.interp = PietInterpreter.__new__(PietInterpreter)
+        self.interp.stack = []
+        self.interp.state = ProgramState()
+
+    def test_execute_cmd_empty_stack_resilience(self):
+        """Проверяем, что команды не падают и корректно игнорируются при пустом стеке."""
+        commands_to_test = ["pop", "add", "subtract", "multiply", "divide", 
+                            "mod", "not", "greater", "pointer", "switch", "duplicate", "roll"]
+        for cmd in commands_to_test:
+            try:
+                self.interp.execute_cmd(cmd, 0)
+            except Exception as e:
+                self.fail(f"Команда {cmd} выбросила исключение при пустом стеке: {e}")
+        self.assertEqual(self.interp.stack, [])
+
+    def test_execute_cmd_division_by_zero(self):
+        """Проверка защиты от деления на ноль для divide и mod."""
+        self.interp.stack = [10, 0]
+        self.interp.execute_cmd("divide", 0)
+        self.assertEqual(self.interp.stack, [10, 0], "Деление на ноль должно игнорироваться")
+
+        self.interp.stack = [10, 0]
+        self.interp.execute_cmd("mod", 0)
+        self.assertEqual(self.interp.stack, [10, 0], "Взятие остатка по модулю 0 должно игнорироваться")
+
+    def test_execute_cmd_invalid_roll(self):
+        """Проверка roll с недопустимой глубиной."""
+        self.interp.stack = [1, 2, 3, -1, 1] # глубина -1
+        self.interp.execute_cmd("roll", 0)
+        self.assertEqual(self.interp.stack, [1, 2, 3, -1, 1])
+
+        self.interp.stack = [1, 2, 3, 10, 1] # глубина 10 при размере стека 3
+        self.interp.execute_cmd("roll", 0)
+        self.assertEqual(self.interp.stack, [1, 2, 3, 10, 1])
+
+    @patch('sys.stdin')
+    def test_execute_cmd_io_input(self, mock_stdin):
+        """Тестирование ввода чисел и символов через stdin."""
+        # Тест in_num
+        mock_stdin.readline.return_value = "42\n"
+        self.interp.execute_cmd("in_num", 0)
+        self.assertEqual(self.interp.stack, [42])
+
+        # Тест in_char
+        mock_stdin.read.return_value = "Z"
+        self.interp.execute_cmd("in_char", 0)
+        self.assertEqual(self.interp.stack, [42, 90]) # ord('Z') = 90
+
+    def test_interpreter_reload(self):
+        """Проверяем работоспособность метода reload."""
+        # Мокаем Normalizer.normalize, чтобы не читать файлы с диска
+        with patch('normalizer.Normalizer.normalize') as mock_norm:
+            mock_img = MagicMock()
+            mock_img.codels = [[Pixel([0, 0, 0])]]
+            mock_img.width = 1
+            mock_img.height = 1
+            mock_norm.return_value = mock_img
+            
+            self.interp.reload("fake_path.png", codel_size=1, step_border=5)
+            self.assertEqual(self.interp.step_border, 5)
+            self.assertEqual(self.interp.width, 1)
+
+    def test_find_exit_codel_all_directions(self):
+        """Полноценное покрытие всех веток направлений (DOWN, LEFT, UP) в find_exit_codel."""
+        block = {(0, 0), (1, 0), (0, 1), (1, 1)} # Квадратный блок 2x2
+        
+        # 1. Тест DOWN (Вниз). 
+        # Лево — это направо (max X = 1). Право — это налево (min X = 0).
+        self.interp.state.dp = DirPointerState.DOWN
+        self.interp.state.cc = CodelCounterState.LEFT
+        self.assertEqual(self.interp.find_exit_codel(block), (1, 1))
+        
+        # 2. Тест LEFT (Влево).
+        # Лево — это вниз (max Y = 1). Ожидаем самый нижний из левых коделов.
+        self.interp.state.dp = DirPointerState.LEFT
+        self.interp.state.cc = CodelCounterState.LEFT
+        self.assertEqual(self.interp.find_exit_codel(block), (0, 1)) # Было (0, 0) -> ИСПРАВЛЕНО
+        
+        # 3. Тест UP (Вверх).
+        # Смотрим вверх. Лево — это влево (min X = 0). Право — это вправо (max X = 1).
+        # В тесте стоит CodelCounterState.RIGHT (Право), значит берем max X.
+        self.interp.state.dp = DirPointerState.UP
+        self.interp.state.cc = CodelCounterState.RIGHT
+        self.assertEqual(self.interp.find_exit_codel(block), (1, 0))
+
+    def test_white_sliding_hit_obstacle(self):
+        """Проверка отката назад, если после белого цвета интерпретатор встретил черный/границу."""
+        self.interp.palette = [[Pixel((255, 0, 0))]] # Упрощенная палитра
+        self.interp.black = Pixel((0, 0, 0))
+        self.interp.white = Pixel((255, 255, 255))
+        self.interp.codel_size = 1
+        self.interp.step_border = 1
+        
+        # Карта: Красный (0,0) -> Белый (1,0) -> Черный препятствие (2,0)
+        self.interp.pixels = [[Pixel((255, 0, 0)), self.interp.white, self.interp.black]]
+        self.interp.width = 3
+        self.interp.height = 1
+        
+        self.interp.run()
+        # Проверяем, что направление DP изменилось (повернулось по часовой после столкновения)
+        self.assertEqual(self.interp.state.dp, DirPointerState.DOWN)
 
 
 if __name__ == '__main__':
