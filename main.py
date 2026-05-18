@@ -4,13 +4,9 @@ from normalizer import Normalizer
 
 piet.PietInterpreter("Gallery/three.png").run()
 print()
-piet.PietInterpreter("Gallery/one.png").run()
-print()
 piet.PietInterpreter("Gallery/hw1-11.gif").run()
 piet.PietInterpreter("Gallery/hw3-5.gif").run()
 piet.PietInterpreter("Gallery/pc.png").run()
-piet.PietInterpreter("Gallery/one_bright.png").run()
-print()
 piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 4).run()
 piet.PietInterpreter("Gallery/helloworld-pietbig.gif", 8).run()
 #piet.PietInterpreter("Gallery/one-zigzag.png").run()
@@ -64,4 +60,14 @@ Gallery/fibbig.gif
     
     def find_exit_codel_by_cc(self, border):
         return 
+        
+        
+        
+    
+class WhiteState:
+    def __init__(self, dp, x, y):
+        self.dp = dp
+        self.x = x
+        self.y = y
+
 '''

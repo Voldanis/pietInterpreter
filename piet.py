@@ -3,27 +3,40 @@ from enum import Enum
 from normalizer import *
 from collections import deque
 
+
 class DirPointerState(Enum):
     RIGHT = 0
     DOWN = 1
     LEFT = 2
     UP = 3
 
+    @staticmethod
+    def dp_to_delta(dp, cod_sise=1):
+        if dp == DirPointerState.RIGHT:
+            return cod_sise, 0
+        elif dp == DirPointerState.DOWN:
+            return 0, cod_sise
+        elif dp == DirPointerState.LEFT:
+            return -cod_sise, 0
+        elif dp == DirPointerState.UP:
+            return 0, -cod_sise
+
+
 class CodelCounterState(Enum):
     LEFT = 0
     RIGHT = 1
 
+
 class ProgramState:
-    def __init__(self):
-        self.dp = DirPointerState.RIGHT
-        self.cc = CodelCounterState.LEFT
+    def __init__(self, dp=DirPointerState.RIGHT, cc=CodelCounterState.LEFT):
+        self.dp = dp
+        self.cc = cc
 
     def pointer(self, n):
         states = [DirPointerState.RIGHT,
                   DirPointerState.DOWN,
                   DirPointerState.LEFT,
                   DirPointerState.UP]
-        # Поворот DP на n шагов по часовой стрелке
         change = (n + self.dp.value) % 4
         self.dp = states[change]
 
@@ -32,6 +45,33 @@ class ProgramState:
                   CodelCounterState.RIGHT]
         change = (n + self.cc.value) % 2
         self.cc = states[change]
+
+    def __copy__(self):
+        return ProgramState(self.dp, self.cc)
+
+
+class WhiteStates:
+    def __init__(self):
+        self.states = dict()
+
+    def add_state(self, x, y, state):
+        if x not in self.states.keys():
+            self.states[x] = dict()
+        if y not in self.states[x].keys():
+            self.states[x][y] = []
+        self.states[x][y].append(state.__copy__())
+
+    def contains(self, x, y, state):
+        if x not in self.states.keys() or y not in self.states[x].keys():
+            return False
+        for check in self.states[x][y]:
+            if state.dp == check.dp and state.cc == check.cc:
+                return True
+        return False
+
+    def clear(self):
+        self.states = dict()
+
 
 class PietInterpreter:
     def __init__(self, image_path, codel_size=-1, step_border=-1):
@@ -84,6 +124,8 @@ class PietInterpreter:
 
     def get_block(self, start_x, start_y):
         target_color = self.pixels[start_y][start_x]
+        if target_color == self.white:
+            return {(start_x, start_y)}, target_color
         block = set()
         block.add((start_x, start_y))
         queue = deque()
@@ -189,39 +231,33 @@ class PietInterpreter:
             elif cmd == "out_char":
                 if len(self.stack) > 0:
                     print(chr(self.stack.pop()), end="", flush=True)
+            elif cmd == "none":
+                pass
         except:
             pass
 
     def run(self):
-        cx, cy = 0, 0
+        x, y = 0, 0
         attempts = 0
         step = 0
+        white_states = WhiteStates()
 
         while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
             step += 1
-            block, color = self.get_block(cx, cy)
-            exit_c = self.find_exit_codel(block)
-            
-            # n = количество коделов в блоке
-            nnnn = len(block)
+            block, color = self.get_block(x, y)
+            if color == self.white:
+                if white_states.contains(x, y, self.state):
+                    return
+                white_states.add_state(x, y, self.state)
 
-            dx, dy = 0, 0
+            exit_codel = self.find_exit_codel(block)
+            dx, dy = DirPointerState.dp_to_delta(self.state.dp)
+            new_x, new_y = exit_codel[0] + dx, exit_codel[1] + dy
 
-            if self.state.dp == DirPointerState.RIGHT:
-                dx = self.codel_size
-            elif self.state.dp == DirPointerState.DOWN:
-                dy = self.codel_size
-            elif self.state.dp == DirPointerState.LEFT:
-                dx = -self.codel_size
-            elif self.state.dp == DirPointerState.UP:
-                dy = -self.codel_size
-
-            nx, ny = exit_c[0] + dx, exit_c[1] + dy
 
             # Проверка препятствия
-            is_border = not (0 <= nx < self.width and 0 <= ny < self.height)
-            # Проверка столкновения (стена или черный)
-            if is_border or self.pixels[ny][nx] == self.black:
+            is_border = not (0 <= new_x < self.width and 0 <= new_y < self.height)
+            if is_border or self.pixels[new_y][new_x] == self.black:
                 if attempts % 2 == 0:
                     self.state.switch(1)
                 else:
@@ -229,39 +265,27 @@ class PietInterpreter:
                 attempts += 1
                 continue
 
-            next_color = self.pixels[ny][nx]
-
-            # Обработка белого цвета (скольжение)
+            next_color = self.pixels[new_y][new_x]
             if next_color == self.white:
-                while 0 <= nx < self.width and 0 <= ny < self.height and self.pixels[ny][nx] == self.white:
-                    nx += dx
-                    ny += dy
-
-                # Если после белого вылетели в стену или черный
-                if not (0 <= nx < self.width and 0 <= ny < self.height) or self.pixels[ny][nx] == self.black:
-                    # По спецификации: откатываемся назад в белый и меняем направление
-                    nx -= dx
-                    ny -= dy
-                    self.state.pointer(1)
-                    attempts += 1
-                    continue
-
-                # Если нашли цвет после белого
-                cx, cy = nx, ny
+                if color != self.white:
+                    white_states.clear()
+                x, y = new_x, new_y
                 attempts = 0
-            else:
-                # Обычный переход между цветами
-                c1 = self.get_color_coords(color)
-                c2 = self.get_color_coords(next_color)
+                continue
 
-                if c1 and c2:
-                    diff_light = (c2[0] - c1[0]) % 3
-                    diff_hue = (c2[1] - c1[1]) % 6
-                    cmd = self.commands[diff_light][diff_hue]
-                    self.execute_cmd(cmd, nnnn)
-                
-                cx, cy = nx, ny
-                attempts = 0
+            # Обычный переход между цветами
+            color_coords = self.get_color_coords(color)
+            next_color_coords = self.get_color_coords(next_color)
+
+            if color_coords and next_color_coords:
+                diff_light = (next_color_coords[0] - color_coords[0]) % 3
+                diff_hue = (next_color_coords[1] - color_coords[1]) % 6
+                cmd = self.commands[diff_light][diff_hue]
+                self.execute_cmd(cmd, len(block))
+
+            x, y = new_x, new_y
+            attempts = 0
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
