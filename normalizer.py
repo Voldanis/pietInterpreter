@@ -37,6 +37,12 @@ class Pixel:
 class Normalizer:
     @staticmethod
     def normalize(image, in_scale_size=-1):
+        """
+        Метод получает пиксели из изображения.
+        Заменяет их на цвета из палитры piet, если они чуть ярче или темнее.
+        Высчитывает максимальный размер пикселя для картинки.
+        Масштабирует изображения, заменяя все пиксели в одном коделе на 1 пиксель.
+        """
         pixels = Normalizer.normalize_pixels(
             Normalizer.convet_image_to_pixels(image))
         scale_size = in_scale_size if in_scale_size > 0 else Normalizer.find_max_codel_size(pixels)
@@ -91,6 +97,9 @@ class Normalizer:
 
     @staticmethod
     def check_squares(pixels, square_size):
+        """
+        Разбивает массив пикселей на квадраты и проверяет, что в каждом квадрате все пиксели одинаковы.
+        """
         height, width = len(pixels), len(pixels[0])
         np_pixels = np.array(pixels)
         h_blocks = height // square_size
