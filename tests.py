@@ -572,5 +572,34 @@ class TestInterpreterExecution(unittest.TestCase):
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
 
         
+class TestMainScriptExecution(unittest.TestCase):
+    """Интеграционные тесты для проверки логики точки входа main.py."""
+
+    @patch('piet.PietInterpreter.run')
+    @patch('piet.PietInterpreter.__init__')
+    @patch('sys.stdout', new_callable=MagicMock)
+    def test_main_script_runs_without_exceptions(self, mock_stdout, mock_init, mock_run):
+        """
+        Проверяет, что при импорте или запуске main.py цепочка вызовов
+        интерпретатора для файлов Gallery выполняется корректно и без падений.
+        """
+        # Настраиваем __init__, чтобы он ничего не делал (игнорировал отсутствие файлов на диске)
+        mock_init.return_value = None
+
+        # Локально импортируем и перезапускаем main.py.
+        # Поскольку патчи уже активны, вызовы PietInterpreter безопасны.
+        import main
+        import importlib
+        importlib.reload(main)
+
+        # Проверяем, что инициализация вызывалась для файлов из скрипта
+        # (Проверяем как минимум первые два вызова, прописанные на верхнем уровне main.py)
+        mock_init.assert_any_call("Gallery/three.png")
+        mock_init.assert_any_call("Gallery/one.png")
+        
+        # Проверяем, что метод run() интерпретатора действительно дергался в main.py
+        self.assertTrue(mock_run.called, "Метод run() интерпретатора должен быть вызван в main.py")
+
+
 if __name__ == '__main__':
     unittest.main()
