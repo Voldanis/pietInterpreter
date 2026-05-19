@@ -11,6 +11,7 @@ import sys
 import shutil
 
 class TestPietFib(unittest.TestCase):
+    # комбинация команд duplicate, roll и add правильно реализует шаг последовательности Фибоначчи
     def setUp(self):
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
@@ -80,6 +81,7 @@ class TestNormalizerColor(unittest.TestCase):
 
 
 class TestNormalizerPixel(unittest.TestCase):
+    #Если хотя бы один не подходит, пиксель не изменяется
     def setUp(self):
         self.Pixel = Pixel
 
@@ -117,6 +119,7 @@ class TestNormalizerPixel(unittest.TestCase):
 
 
 class TestNormalizerImageArray(unittest.TestCase):
+    #Проверить normalize_pixels, которая применяет try_normalize_pixel ко всем пикселям изображения.
     def setUp(self):
         self.Pixel = Pixel
 
@@ -150,6 +153,10 @@ class TestNormalizerImageArray(unittest.TestCase):
 
 
 class TestCodelSizeDiscovery(unittest.TestCase):
+    """Проверить find_max_codel_size, который ищет 
+    максимальный размер квадрата, на который можно 
+    разбить изображение так, чтобы все пиксели внутри 
+    каждого квадрата были одинаковы."""
     def test_find_max_codel_size_simple(self):
         # Типа изображение 4на4, где кодел = 2
         # Каждые 2на2 пикселя одного цвета
@@ -175,6 +182,8 @@ class TestCodelSizeDiscovery(unittest.TestCase):
 
 
 class TestNormalizerScaling(unittest.TestCase):
+    """Проверить scale_image, которая уменьшает изображение, 
+    беря по одному пикселю из каждого блока scale_size × scale_size"""
     def setUp(self):
         from normalizer import Pixel
         self.Pixel = Pixel
@@ -195,6 +204,8 @@ class TestNormalizerScaling(unittest.TestCase):
 
 
 class TestNormalizerFinal(unittest.TestCase):
+    """на реальном файле ДляТестов.png 
+    возвращает объект с корректными полями codels, width, height."""
     def test_normalize_integration_real_file(self):
         test_img = "ДляТестов.png"
         
@@ -222,13 +233,10 @@ class TestNormalizerFinal(unittest.TestCase):
 
 
 class TestNormalizerEdgeCases(unittest.TestCase):
-    # def test_get_primes_limit(self):
-    #     """Проверка защиты от слишком больших чисел."""
-    #     with self.assertRaises(ValueError):
-    #         Normalizer.get_primes(2001)
-
+    """краевые случаи нормализации"""
     def test_scale_image_with_objects(self):
-        """Проверка, что масштаб сохраняет объекты Pixel."""
+        """Масштабирование матрицы 2×2 с шагом 2 даёт 1×1, 
+        объект Pixel сохраняется."""
         from normalizer import Pixel
         p1 = Pixel([255, 0, 0])
         matrix = [[p1, p1], [p1, p1]] 
@@ -239,7 +247,8 @@ class TestNormalizerEdgeCases(unittest.TestCase):
         self.assertIs(scaled[0][0], p1)
 
     def test_find_max_codel_size_prime_gcd(self):
-        """Если НОД — простое число, должен найти его."""
+        """Изображение 7×7 одного цвета → размер кодела = 7 
+        (проверка работы с НОД)."""
         # Картинка 7x7 одного цвета. GCD = 7. 
         # Если 7 есть в primes.txt, должен вернуть 7.
         data = np.zeros((7, 7, 3), dtype=np.uint8)
@@ -248,6 +257,8 @@ class TestNormalizerEdgeCases(unittest.TestCase):
 
 
 class TestProgramState(unittest.TestCase):
+    """Проверить методы pointer (поворот указателя направления)
+    switch (переключение счётчика коделов)."""
     def setUp(self):
         self.state = ProgramState()
 
@@ -270,6 +281,7 @@ class TestProgramState(unittest.TestCase):
 
 
 class TestInterpreterCommands(unittest.TestCase):
+    """Проверить корректность реализации арифметических и стековых команд."""
     def setUp(self):
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
@@ -308,9 +320,12 @@ class TestInterpreterCommands(unittest.TestCase):
         
         
 class TestCheckColors(unittest.TestCase):
-
+    """Проверить функцию check_colors из dop_funcs.py, 
+    которая определяет, есть ли в изображении цвета, 
+    не входящие в палитру Piet."""
     @patch('dop_funcs.Image.open')
     def test_check_colors_ideal_image(self, mock_open):
+        """Изображение только из цветов палитры → (True, [])"""
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[255, 0, 0], [255, 0, 0]],
@@ -321,10 +336,11 @@ class TestCheckColors(unittest.TestCase):
         result, invalid_colors = check_colors("fake_path.png")
 
         self.assertTrue(result, "Идеальное изображение должно возвращать True")
-        self.assertEqual(invalid_colors, [], "Список невалидных цветов должен быть пуст")
+        self.assertEqual(invalid_colors, [], "Список плохих цветов должен быть пуст")
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_noisy_colors(self, mock_open):
+        """Присутствует цвет (254,0,0) – близкий к красному, но не точно"""
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[254, 0, 0], [255, 0, 0]]
@@ -339,6 +355,7 @@ class TestCheckColors(unittest.TestCase):
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_foreign_colors(self, mock_open):
+        """Цвета (128,128,128) и (139,69,19) должно дать фолз"""
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[128, 128, 128], [139, 69, 19]]
@@ -353,6 +370,7 @@ class TestCheckColors(unittest.TestCase):
 
     @patch('dop_funcs.Image.open')
     def test_check_colors_black_and_white(self, mock_open):
+        """Только чёрный и белый"""
         mock_img = MagicMock()
         mock_img.convert.return_value = np.array([
             [[0, 0, 0], [255, 255, 255]]
@@ -366,10 +384,13 @@ class TestCheckColors(unittest.TestCase):
 
 
 class TestGetAllFilenames(unittest.TestCase):
-
+    """Проверить функцию get_all_filenames (также из dop_funcs.py), 
+    которая возвращает полные пути только файлов (не папок) 
+    в указанной директории."""
     @patch('dop_funcs.os.path.isfile')
     @patch('dop_funcs.os.listdir')
     def test_get_all_filenames_empty_directory(self, mock_listdir, mock_isfile):
+        """Пустая папка"""
         mock_listdir.return_value = []
         
         result = get_all_filenames("empty_folder")
@@ -379,6 +400,8 @@ class TestGetAllFilenames(unittest.TestCase):
     @patch('dop_funcs.os.path.isfile')
     @patch('dop_funcs.os.listdir')
     def test_get_all_filenames_mixed_extensions_and_dirs(self, mock_listdir, mock_isfile):
+        """В папке есть файлы .png, .gif, .txt и подпапка sub_dir
+        возвращаются только файлы (3 штуки)."""
         mock_listdir.return_value = ['pic.png', 'anim.gif', 'sub_dir', 'readme.txt']
         
         def isfile_side_effect(path):
@@ -397,7 +420,7 @@ class TestGetAllFilenames(unittest.TestCase):
         self.assertListEqual(sorted(result), sorted(expected), "Списки путей файлов должны совпадать")
         
 class TestInterpreterExecution(unittest.TestCase):
-
+    """проверка на мелких изображениях"""
     def setUp(self):
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
@@ -422,6 +445,8 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.codel_size = 1
 
     def test_interpreter_discovers_block_and_moves(self):
+        """Находит блок красного цвета из 4 коделов, 
+        вычисляет выходной кодел (должен быть (1,0) при DP=RIGHT)."""
         p_red = self.interp.palette[1][0]
         p_yellow = self.interp.palette[1][1]
         
@@ -441,6 +466,8 @@ class TestInterpreterExecution(unittest.TestCase):
         self.assertEqual(exit_c, (1, 0))
 
     def test_interpreter_hits_black_block_and_rotates(self):
+        """При столкновении с чёрным блоком интерпретатор пытается изменить DP/CC, 
+        и после 8 попыток DP возвращается в исходное состояние RIGHT"""
         p_red = self.interp.palette[1][0]
         p_black = self.interp.black
         
@@ -462,6 +489,8 @@ class TestInterpreterExecution(unittest.TestCase):
                          "После полной блокировки и 8 попыток DP должен вернуться в исходную позицию")
 
     def test_interpreter_white_sliding(self):
+        """Проходит через белую область, не выполняя команд, 
+        и достигает следующего цветного блока."""
         p_red = self.interp.palette[1][0]
         p_white = self.interp.white
         p_blue = self.interp.palette[1][4]
@@ -479,6 +508,7 @@ class TestInterpreterExecution(unittest.TestCase):
 
     @patch('sys.stdout', new_callable=MagicMock)
     def test_io_commands_execution(self, mock_stdout):
+        """Проверяет вывод чисел (out_num) и символов (out_char) через sys.stdout."""
         self.interp.stack = [65, 42]
         
         self.interp.execute_cmd("out_num", 0)
@@ -490,6 +520,8 @@ class TestInterpreterExecution(unittest.TestCase):
         mock_stdout.write.assert_any_call("A")
         
     def test_interpreter_total_block_stops_program(self):
+        """Если программа полностью заблокирована чёрным, 
+        она останавливается (DP не меняется бесконечно)."""
         p_red = self.interp.palette[1][0]
         p_black = self.interp.black
         
@@ -508,6 +540,7 @@ class TestInterpreterExecution(unittest.TestCase):
         
 class TestNormalizerSupplementary(unittest.TestCase):
     def test_pixel_magic_methods(self):
+        """чекаем методы __str__, __hash__, __eq__ класса Pixel"""
         p1 = Pixel([255, 0, 0])
         p2 = Pixel([255, 0, 0])
         self.assertEqual(str(p1), "(255, 0, 0)")
@@ -515,6 +548,8 @@ class TestNormalizerSupplementary(unittest.TestCase):
         self.assertFalse(p1 == [255, 0, 0])
 
     def test_check_squares_false(self):
+        """Если в каком-то квадрате пиксели не одинаковы, 
+        find_max_codel_size вернёт 1 (а не 2)"""
         p_red = Pixel([255, 0, 0])
         p_blue = Pixel([0, 0, 255])
         pixels = [
@@ -526,12 +561,15 @@ class TestNormalizerSupplementary(unittest.TestCase):
         
         
 class TestPietInterpreterAdvanced(unittest.TestCase):
+    """еще еще и еще проверки"""
     def setUp(self):
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
         self.interp.state = ProgramState()
 
     def test_execute_cmd_empty_stack_resilience(self):
+        """Все команды, требующие элементов стека, 
+        не должны падать при пустом стеке"""
         commands_to_test = ["pop", "add", "subtract", "multiply", "divide", 
                             "mod", "not", "greater", "pointer", "switch", "duplicate", "roll"]
         for cmd in commands_to_test:
@@ -542,6 +580,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.stack, [])
 
     def test_execute_cmd_division_by_zero(self):
+        """Деление и остаток на ноль"""
         self.interp.stack = [10, 0]
         self.interp.execute_cmd("divide", 0)
         self.assertEqual(self.interp.stack, [10, 0], "Деление на ноль должно игнорироваться")
@@ -551,6 +590,8 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.stack, [10, 0], "Взятие остатка по модулю 0 должно игнорироваться")
 
     def test_execute_cmd_invalid_roll(self):
+        """roll с отрицательной глубиной или глубиной больше доступной
+        типа не должен падать"""
         self.interp.stack = [1, 2, 3, -1, 1]
         self.interp.execute_cmd("roll", 0)
         self.assertEqual(self.interp.stack, [1, 2, 3, -1, 1])
@@ -561,6 +602,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
 
     @patch('sys.stdin')
     def test_execute_cmd_io_input(self, mock_stdin):
+        """in_num и in_char правильно читают из sys.stdin"""
         mock_stdin.readline.return_value = "42\n"
         self.interp.execute_cmd("in_num", 0)
         self.assertEqual(self.interp.stack, [42])
@@ -570,6 +612,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.stack, [42, 90])
 
     def test_interpreter_reload(self):
+        """корректно перезагружает новое изображение."""
         with patch('normalizer.Normalizer.normalize') as mock_norm:
             mock_img = MagicMock()
             mock_img.codels = [[Pixel([0, 0, 0])]]
@@ -582,6 +625,8 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
             self.assertEqual(self.interp.width, 1)
 
     def test_find_exit_codel_all_directions(self):
+        """Проверяет выбор выходного кодела для разных комбинаций 
+        DP и CC (блок 2×2)"""
         block = {(0, 0), (1, 0), (0, 1), (1, 1)}
         
         self.interp.state.dp = DirPointerState.DOWN
@@ -597,6 +642,8 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.find_exit_codel(block), (1, 0))
 
     def test_white_sliding_hit_obstacle(self):
+        """Белое скольжение, упирающееся в чёрный блок, 
+        заставляет интерпретатор менять DP/CC."""
         self.interp.palette = [[Pixel((255, 0, 0))]]
         self.interp.black = Pixel((0, 0, 0))
         self.interp.white = Pixel((255, 255, 255))
