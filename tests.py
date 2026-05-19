@@ -4,11 +4,8 @@ from normalizer import Normalizer, Pixel
 from unittest.mock import patch, MagicMock
 import numpy as np
 import os
-from PIL import Image
 from dop_funcs import check_colors, get_all_filenames
-import subprocess
-import sys
-import shutil
+
 
 class TestPietFib(unittest.TestCase):
     # комбинация команд duplicate, roll и add правильно реализует шаг последовательности Фибоначчи
