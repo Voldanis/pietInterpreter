@@ -332,7 +332,7 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp = PietInterpreter.__new__(PietInterpreter)
         self.interp.stack = []
         self.interp.state = ProgramState()
-        self.interp.step_border = 10
+        self.interp.max_step_count = 10
         
         self.interp.palette = [
             [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
@@ -408,7 +408,7 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.width = 3
         self.interp.height = 1
         
-        self.interp.step_border = 1
+        self.interp.max_step_count = 1
         self.interp.run()
         
         self.assertEqual(self.interp.step_border_exist(), True)
@@ -527,7 +527,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
             mock_norm.return_value = mock_img
             
             self.interp.reload("fake_path.png", codel_size=1, step_border=5)
-            self.assertEqual(self.interp.step_border, 5)
+            self.assertEqual(self.interp.max_step_count, 5)
             self.assertEqual(self.interp.width, 1)
 
     def test_find_exit_codel_all_directions(self):
@@ -554,7 +554,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.interp.black = Pixel((0, 0, 0))
         self.interp.white = Pixel((255, 255, 255))
         self.interp.codel_size = 1
-        self.interp.step_border = 1
+        self.interp.max_step_count = 1
         
         self.interp.pixels = [[Pixel((255, 0, 0)), Pixel((255, 255, 255)), Pixel((0, 0, 0))]]
         self.interp.width = 3
@@ -565,7 +565,7 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
         self.assertEqual(self.interp.state.cc, CodelCounterState.LEFT)
         
-        self.interp.step_border = 2
+        self.interp.max_step_count = 2
         self.interp.run()
         
         self.assertEqual(self.interp.state.cc, CodelCounterState.RIGHT)
