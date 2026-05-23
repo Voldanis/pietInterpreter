@@ -1,4 +1,3 @@
-import sys
 from enum import Enum
 from normalizer import *
 from collections import deque

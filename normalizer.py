@@ -1,7 +1,15 @@
 import math
-from enum import Enum
-from PIL import Image  # сделать установку в коде
-import numpy as np
+import sys
+import subprocess
+
+try:
+    from PIL import Image
+    import numpy as np
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pillow"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
+    from PIL import Image
+    import numpy as np
 
 
 class Pixel:

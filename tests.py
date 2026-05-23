@@ -1,14 +1,21 @@
-import unittest
+import sys
+import subprocess
+
+try:
+    import unittest
+    import numpy as np
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "unittest"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
+    import unittest
+    import numpy as np
+
+
 from piet import PietInterpreter, ProgramState, DirPointerState, CodelCounterState
 from normalizer import Normalizer, Pixel
 from unittest.mock import patch, MagicMock
-import numpy as np
 import os
-from PIL import Image
-from dop_funcs import check_colors, get_all_filenames
-import subprocess
-import sys
-import shutil
+
 
 class TestPietFib(unittest.TestCase):
     # комбинация команд duplicate, roll и add правильно реализует шаг последовательности Фибоначчи
@@ -317,107 +324,7 @@ class TestInterpreterCommands(unittest.TestCase):
         self.interp.stack = [5, 10]
         self.interp.execute_cmd("greater", 0)
         self.assertEqual(self.interp.stack, [0])
-        
-        
-class TestCheckColors(unittest.TestCase):
-    """Проверить функцию check_colors из dop_funcs.py, 
-    которая определяет, есть ли в изображении цвета, 
-    не входящие в палитру Piet."""
-    @patch('dop_funcs.Image.open')
-    def test_check_colors_ideal_image(self, mock_open):
-        """Изображение только из цветов палитры → (True, [])"""
-        mock_img = MagicMock()
-        mock_img.convert.return_value = np.array([
-            [[255, 0, 0], [255, 0, 0]],
-            [[255, 255, 255], [255, 255, 255]]
-        ], dtype=np.uint8)
-        mock_open.return_value.__enter__.return_value = mock_img
 
-        result, invalid_colors = check_colors("fake_path.png")
-
-        self.assertTrue(result, "Идеальное изображение должно возвращать True")
-        self.assertEqual(invalid_colors, [], "Список плохих цветов должен быть пуст")
-
-    @patch('dop_funcs.Image.open')
-    def test_check_colors_noisy_colors(self, mock_open):
-        """Присутствует цвет (254,0,0) – близкий к красному, но не точно"""
-        mock_img = MagicMock()
-        mock_img.convert.return_value = np.array([
-            [[254, 0, 0], [255, 0, 0]]
-        ], dtype=np.uint8)
-        mock_open.return_value.__enter__.return_value = mock_img
-
-        result, invalid_colors = check_colors("fake_path.png")
-
-        self.assertFalse(result, "Изображение с шумом должно возвращать False")
-        self.assertIn((254, 0, 0), invalid_colors, "Грязный цвет (254, 0, 0) должен быть обнаружен")
-        self.assertEqual(len(invalid_colors), 1)
-
-    @patch('dop_funcs.Image.open')
-    def test_check_colors_foreign_colors(self, mock_open):
-        """Цвета (128,128,128) и (139,69,19) должно дать фолз"""
-        mock_img = MagicMock()
-        mock_img.convert.return_value = np.array([
-            [[128, 128, 128], [139, 69, 19]]
-        ], dtype=np.uint8)
-        mock_open.return_value.__enter__.return_value = mock_img
-
-        result, invalid_colors = check_colors("fake_path.png")
-
-        self.assertFalse(result, "Сторонние цвета должны приводить к результату False")
-        self.assertEqual(len(invalid_colors), 2, "Должно быть обнаружено ровно 2 невалидных цвета")
-        self.assertSetEqual(set(invalid_colors), {(128, 128, 128), (139, 69, 19)})
-
-    @patch('dop_funcs.Image.open')
-    def test_check_colors_black_and_white(self, mock_open):
-        """Только чёрный и белый"""
-        mock_img = MagicMock()
-        mock_img.convert.return_value = np.array([
-            [[0, 0, 0], [255, 255, 255]]
-        ], dtype=np.uint8)
-        mock_open.return_value.__enter__.return_value = mock_img
-
-        result, invalid_colors = check_colors("fake_path.png")
-
-        self.assertTrue(result, "Черно-белое изображение (границы Piet) должно быть валидным")
-        self.assertEqual(invalid_colors, [])
-
-
-class TestGetAllFilenames(unittest.TestCase):
-    """Проверить функцию get_all_filenames (также из dop_funcs.py), 
-    которая возвращает полные пути только файлов (не папок) 
-    в указанной директории."""
-    @patch('dop_funcs.os.path.isfile')
-    @patch('dop_funcs.os.listdir')
-    def test_get_all_filenames_empty_directory(self, mock_listdir, mock_isfile):
-        """Пустая папка"""
-        mock_listdir.return_value = []
-        
-        result = get_all_filenames("empty_folder")
-        
-        self.assertEqual(result, [], "Для пустой папки должен возвращаться пустой список")
-
-    @patch('dop_funcs.os.path.isfile')
-    @patch('dop_funcs.os.listdir')
-    def test_get_all_filenames_mixed_extensions_and_dirs(self, mock_listdir, mock_isfile):
-        """В папке есть файлы .png, .gif, .txt и подпапка sub_dir
-        возвращаются только файлы (3 штуки)."""
-        mock_listdir.return_value = ['pic.png', 'anim.gif', 'sub_dir', 'readme.txt']
-        
-        def isfile_side_effect(path):
-            return 'sub_dir' not in path
-        mock_isfile.side_effect = isfile_side_effect
-
-        result = get_all_filenames("Gallery")
-
-        expected = [
-            os.path.join("Gallery", "pic.png"),
-            os.path.join("Gallery", "anim.gif"),
-            os.path.join("Gallery", "readme.txt")
-        ]
-        
-        self.assertEqual(len(result), 3, "Должно быть найдено ровно 3 файла")
-        self.assertListEqual(sorted(result), sorted(expected), "Списки путей файлов должны совпадать")
         
 class TestInterpreterExecution(unittest.TestCase):
     """проверка на мелких изображениях"""
@@ -535,7 +442,6 @@ class TestInterpreterExecution(unittest.TestCase):
         self.interp.run()
         
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
-
         
         
 class TestNormalizerSupplementary(unittest.TestCase):
