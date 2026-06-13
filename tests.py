@@ -17,7 +17,7 @@ from unittest.mock import patch, MagicMock
 import os
 from unittest.mock import MagicMock, patch
 from PyQt6.QtWidgets import QApplication
-# Импортируем целевой класс (убедись, что файл лежит рядом)
+from PyQt6.QtGui import QPaintEvent
 from step_by_step_piet import GraphicPietInterpreter
 
 class TestPietFib(unittest.TestCase):
@@ -667,5 +667,149 @@ class TestPietLogic(unittest.TestCase):
         self.assertTrue(True)
 
 
+class TestGraphicPietCoverage(unittest.TestCase):
+    """
+    Класс для агрессивного покрытия файла step_by_step_piet.py.
+    Тестирует отрисовку, ветвления в step() и перехват ввода-вывода.
+    """
+    def setUp(self):
+        self.mock_interp = MagicMock(spec=PietInterpreter)
+        
+        self.mock_interp.state = MagicMock()
+        self.mock_interp.state.dp = DirPointerState.RIGHT
+        self.mock_interp.state.cc = CodelCounterState.LEFT
+        self.mock_interp.state.x = 0
+        self.mock_interp.state.y = 0
+        
+        self.mock_interp.width = 2
+        self.mock_interp.height = 2
+        
+        # Создаем фейковые пиксели с заглушками свойств r, g, b
+        p = MagicMock()
+        p.r, p.g, p.b = 255, 0, 0
+        self.mock_interp.pixels = [[p, p], [p, p]]
+        self.mock_interp.black = "BLACK"
+        self.mock_interp.white = "WHITE"
+        self.mock_interp.stack = [] 
+        
+        with patch('step_by_step_piet.PietInterpreter', return_value=self.mock_interp):
+            self.gui = GraphicPietInterpreter("dummy.png")
+            
+        # Глушим физическое обновление интерфейса, чтобы тесты летали
+        self.gui.canvas.update = MagicMock()
+
+    def test_update_ui_states_terminated(self):
+        """Проверка обновления UI при завершении программы (is_terminated = True)."""
+        self.gui.is_terminated = True
+        self.gui.update_ui_states()
+        self.assertEqual(self.gui.step_button.text(), "Terminated")
+        self.assertFalse(self.gui.step_button.isEnabled())
+        self.assertIn("[PROGRAM HALTED]", self.gui.info_label.text())
+
+    def test_intercept_out_num(self):
+        """Проверка перехвата вывода числа."""
+        self.mock_interp.stack.append(42)
+        # Должен вернуть False (не прерывать шаг)
+        requires_pause = self.gui.intercept_execute_cmd("out_num", 0)
+        self.assertFalse(requires_pause)
+        self.assertEqual(self.gui.output_field.toPlainText(), "42")
+
+    def test_intercept_out_char(self):
+        """Проверка перехвата вывода символа."""
+        self.mock_interp.stack.append(65) # ASCII код 'A'
+        requires_pause = self.gui.intercept_execute_cmd("out_char", 0)
+        self.assertFalse(requires_pause)
+        self.assertEqual(self.gui.output_field.toPlainText(), "A")
+
+    def test_intercept_standard_cmd(self):
+        """Обычная команда не должна прерывать работу UI, а должна уйти в ядро."""
+        requires_pause = self.gui.intercept_execute_cmd("add", 0)
+        self.assertFalse(requires_pause)
+        self.mock_interp.execute_cmd.assert_called_with("add", 0)
+
+    def test_step_early_exit_if_terminated(self):
+        """Если программа уже остановлена, step() ничего не делает."""
+        self.gui.is_terminated = True
+        initial_counter = self.gui.step_counter
+        self.gui.step()
+        self.assertEqual(self.gui.step_counter, initial_counter)
+
+    def test_step_waiting_empty_input(self):
+        """Если ожидаем ввод, но поле пустое, шаг не завершается."""
+        self.gui.waiting_for_input = True
+        self.gui.input_field.setText("")
+        self.gui.step()
+        self.assertTrue(self.gui.waiting_for_input)
+
+    def test_step_resume_in_char(self):
+        """Обработка пользовательского ввода символа (in_char)."""
+        self.gui.waiting_for_input = True
+        self.gui.pending_cmd = "in_char"
+        self.gui.input_field.setText("Z")
+        self.gui.step()
+        self.assertIn(90, self.mock_interp.stack) # ord("Z") = 90
+        self.assertFalse(self.gui.waiting_for_input)
+
+    def test_step_resume_invalid_in_num(self):
+        """Если запросили число, а ввели буквы, программа не должна упасть."""
+        self.gui.waiting_for_input = True
+        self.gui.pending_cmd = "in_num"
+        self.gui.input_field.setText("not_a_number")
+        self.gui.step()
+        # Стек должен остаться пустым, ошибка ValueError перехвачена
+        self.assertEqual(len(self.mock_interp.stack), 0)
+        self.assertFalse(self.gui.waiting_for_input)
+
+    def test_step_max_attempts_reached(self):
+        """Проверка остановки по счетчику попыток."""
+        self.gui.attempts = 8
+        self.gui.step()
+        self.assertTrue(self.gui.is_terminated)
+
+    def test_step_hit_black_obstacle(self):
+        """Проверка графической реакции на черную стену (должна вызвать switch/pointer)."""
+        self.mock_interp.get_block.return_value = ([(0,0)], "COLOR")
+        self.mock_interp.find_exit_codel.return_value = (0, 0)
+        
+        # Подстраиваем матрицу так, чтобы справа от (0,0) был BLACK
+        self.mock_interp.pixels[0][1] = "BLACK"
+        
+        # Попытка 0: должен вызваться switch
+        self.gui.attempts = 0
+        self.gui.step()
+        self.mock_interp.state.switch.assert_called_with(1)
+        self.assertEqual(self.gui.attempts, 1)
+
+        # Попытка 1: должен вызваться pointer
+        self.gui.attempts = 1
+        self.gui.step()
+        self.mock_interp.state.pointer.assert_called_with(1)
+        self.assertEqual(self.gui.attempts, 2)
+
+    def test_step_hit_white_block(self):
+        """Проверка графической реакции на белую зону (свободное скольжение)."""
+        self.mock_interp.get_block.return_value = ([(0,0)], "COLOR")
+        self.mock_interp.find_exit_codel.return_value = (0, 0)
+        
+        # Подстраиваем матрицу так, чтобы справа от (0,0) был WHITE
+        self.mock_interp.pixels[0][1] = "WHITE"
+        
+        self.gui.step()
+        # Указатель должен сдвинуться
+        self.assertEqual(self.mock_interp.state.x, 1)
+        self.assertEqual(self.mock_interp.state.y, 0)
+        self.assertEqual(self.gui.step_counter, 1)
+
+    @patch('step_by_step_piet.QPainter')
+    def test_canvas_paint_event(self, MockPainter):
+        """Искусственный вызов paintEvent, чтобы покрыть логику отрисовки."""
+        event = MagicMock(spec=QPaintEvent)
+        # Просто вызываем метод. Если он не падает, значит базовые расчеты координат проходят.
+        try:
+            self.gui.canvas.paintEvent(event)
+        except Exception as e:
+            self.fail(f"paintEvent упал с ошибкой: {e}")
+            
+            
 if __name__ == '__main__':
     unittest.main()
