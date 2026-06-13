@@ -621,12 +621,16 @@ class TestGraphicPietInterpreter(unittest.TestCase):
 
     def test_step_requires_input(self):
         """Проверка перехода в режим ввода."""
-        # Перехватываем только команду, чтобы сымитировать остановку для ввода
-        with patch.object(self.gui, 'intercept_execute_cmd', return_value=True):
-            self.gui.step()
-            
+        # Подменяем матрицу команд мока, чтобы при любом шаге выпадал in_num
+        self.mock_interp.commands = [["in_num"] * 6] * 3
+
+        # Не мокаем сам метод интерфейса, даем ему отработать реально
+        self.gui.step()
+        
+        # Теперь реальный intercept_execute_cmd установит все флаги
         self.assertTrue(self.gui.waiting_for_input)
         self.assertTrue(self.gui.input_field.isEnabled())
+        self.assertEqual(self.gui.pending_cmd, "in_num")
 
     def test_step_resume_after_input(self):
         """Проверка обработки введенных пользователем данных."""
