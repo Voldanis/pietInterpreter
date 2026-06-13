@@ -15,7 +15,10 @@ from piet import PietInterpreter, ProgramState, DirPointerState, CodelCounterSta
 from normalizer import Normalizer, Pixel
 from unittest.mock import patch, MagicMock
 import os
-
+from unittest.mock import MagicMock, patch
+from PyQt6.QtWidgets import QApplication
+# Импортируем целевой класс (убедись, что файл лежит рядом)
+from step_by_step_piet import GraphicPietInterpreter
 
 class TestPietFib(unittest.TestCase):
     # комбинация команд duplicate, roll и add правильно реализует шаг последовательности Фибоначчи
@@ -570,6 +573,78 @@ class TestPietInterpreterAdvanced(unittest.TestCase):
         
         self.assertEqual(self.interp.state.cc, CodelCounterState.RIGHT)
         self.assertEqual(self.interp.state.dp, DirPointerState.RIGHT)
+
+
+app = QApplication.instance() or QApplication([])
+
+class TestGraphicPietInterpreter(unittest.TestCase):
+    def setUp(self):
+        # Патчим PietInterpreter, чтобы не создавать реальный экземпляр
+        with patch('step_by_step_piet.PietInterpreter', autospec=True) as MockInterp:
+            self.mock_interp = MockInterp.return_value
+            # Имитируем состояние
+            self.mock_interp.state = MagicMock()
+            self.mock_interp.pixels = [[MagicMock()]]
+            self.mock_interp.width = 1
+            self.mock_interp.height = 1
+            
+            # --- ВОТ ЭТА СТРОЧКА ИСПРАВИТ ОШИБКИ ---
+            self.mock_interp.stack = [] 
+            
+            # Инициализируем графический интерпретатор
+            self.gui = GraphicPietInterpreter("dummy.png")
+            # Подменяем canvas, чтобы не отрисовывать графику
+            self.gui.canvas = MagicMock()
+
+    def test_step_standard_execution(self):
+        """Проверка обычного шага, который не требует ввода данных."""
+        # Имитируем поведение ядра: get_block возвращает что-то, команда не in_num
+        self.mock_interp.get_block.return_value = ([ (0,0) ], (255,0,0))
+        self.mock_interp.find_exit_codel.return_value = (0, 0)
+        self.mock_interp.pixels = [[MagicMock(), MagicMock()]]
+        
+        # Вызываем шаг
+        self.gui.step()
+        
+        # Проверяем, что счетчик шагов увеличился
+        self.assertEqual(self.gui.step_counter, 1)
+        self.assertFalse(self.gui.waiting_for_input)
+
+    def test_step_requires_input(self):
+        """Проверка, что при команде in_num GUI переходит в режим ожидания ввода."""
+        self.mock_interp.get_block.return_value = ([ (0,0) ], (255,0,0))
+        self.mock_interp.find_exit_codel.return_value = (0, 0)
+        
+        # Имитируем перехват команды ввода
+        def side_effect(cmd, n):
+            if cmd == "in_num":
+                return True # Требует паузы
+            return False
+            
+        # Патчим метод, чтобы вернуть True для in_num
+        with patch.object(self.gui, 'intercept_execute_cmd', side_effect=side_effect):
+            self.gui.step()
+            
+        self.assertTrue(self.gui.waiting_for_input)
+        self.assertEqual(self.gui.pending_cmd, "in_num")
+        self.assertTrue(self.gui.input_field.isEnabled())
+
+    def test_step_resume_after_input(self):
+        """Проверка завершения шага после получения ввода от пользователя."""
+        self.gui.waiting_for_input = True
+        self.gui.pending_cmd = "in_num"
+        self.gui.input_field.setText("42")
+        self.gui.input_field.setEnabled(True)
+        
+        # Вызываем шаг для завершения ввода
+        self.gui.step()
+        
+        # Проверяем, что данные попали в стек
+        self.assertIn(42, self.mock_interp.stack)
+        # Проверяем сброс состояния
+        self.assertFalse(self.gui.waiting_for_input)
+        self.assertFalse(self.gui.input_field.isEnabled())
+        self.assertEqual(self.gui.step_counter, 1)
 
 
 if __name__ == '__main__':
