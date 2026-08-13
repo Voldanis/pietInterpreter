@@ -1,6 +1,7 @@
 from enum import Enum
 from normalizer import *
 from collections import deque
+import sys
 
 
 class DirPointerState(Enum):
@@ -31,11 +32,13 @@ class CodelCounterState(Enum):
 
 class ProgramState:
     """
-    Класс, в котором удобно хранить dp и cc, а также выполнять операции pointer и switch
+    Класс, в котором удобно хранить dp, cc, x, y, а также выполнять операции pointer и switch
     """
-    def __init__(self, dp=DirPointerState.RIGHT, cc=CodelCounterState.LEFT):
+    def __init__(self, dp=DirPointerState.RIGHT, cc=CodelCounterState.LEFT, x=0, y=0):
         self.dp = dp
         self.cc = cc
+        self.x = x
+        self.y = y
 
     def pointer(self, n):
         states = [DirPointerState.RIGHT,
@@ -52,7 +55,7 @@ class ProgramState:
         self.cc = states[change]
 
     def __copy__(self):
-        return ProgramState(self.dp, self.cc)
+        return ProgramState(self.dp, self.cc, self.x, self.y)
 
 
 class WhiteStates:
@@ -88,14 +91,14 @@ class WhiteStates:
 
 
 class PietInterpreter:
-    def __init__(self, image_path, codel_size=-1, step_border=-1):
+    def __init__(self, image_path, codel_size=-1, max_step_count=-1):
         img = Normalizer.normalize(image_path, codel_size)
         self.pixels = img.codels
         self.width = img.width
         self.height = img.height
         self.codel_size = 1  # удалить
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
-        self.step_border = step_border
+        self.max_step_count = max_step_count
         self.stack = []
         self.state = ProgramState()
 
@@ -125,7 +128,7 @@ class PietInterpreter:
         self.width = img.width
         self.height = img.height
         self.codel_size = 1
-        self.step_border = step_border
+        self.max_step_count = step_border
         self.stack = []
         self.state = ProgramState()
 
@@ -133,7 +136,7 @@ class PietInterpreter:
         """
         Проверить, передан ли в аргументах step_border
         """
-        return self.step_border >= 0
+        return self.max_step_count >= 0
 
     def get_color_coords(self, pixel):
         """
@@ -273,20 +276,19 @@ class PietInterpreter:
             pass
 
     def run(self):
-        x, y = 0, 0
         attempts = 0
         step = 0
         white_states = WhiteStates()
 
         # Проходимся по картине, пока не попали в тупик или не выполнили слишком много шагов
-        while attempts < 8 and (not self.step_border_exist() or step < self.step_border):
+        while attempts < 8 and (not self.step_border_exist() or step < self.max_step_count):
             step += 1
-            block, color = self.get_block(x, y)
+            block, color = self.get_block(self.state.x, self.state.y)
             # Если мы на белом блоке, занести текущее состояние, чтобы потом проверить, не ходим ли мы кругами
             if color == self.white:
-                if white_states.contains(x, y, self.state):
+                if white_states.contains(self.state.x, self.state.y, self.state):
                     return
-                white_states.add_state(x, y, self.state)
+                white_states.add_state(self.state.x, self.state.y, self.state)
 
             exit_codel = self.find_exit_codel(block)
             dx, dy = DirPointerState.dp_to_delta(self.state.dp)
@@ -307,7 +309,7 @@ class PietInterpreter:
             if next_color == self.white:
                 if color != self.white:
                     white_states.clear()
-                x, y = new_x, new_y
+                self.state.x, self.state.y = new_x, new_y
                 attempts = 0
                 continue
 
@@ -321,13 +323,14 @@ class PietInterpreter:
                 cmd = self.commands[diff_light][diff_hue]
                 self.execute_cmd(cmd, len(block))
 
-            x, y = new_x, new_y
+            self.state.x, self.state.y = new_x, new_y
             attempts = 0
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python piet.py <file> <*size> <*step_border>")
+    if len(sys.argv) < 2 or len(sys.argv) > 4:
+        print("Usage: python piet.py <file> <*codel_size> <*max_step_count>")
+        print("* - optional")
     else:
         PietInterpreter(sys.argv[1],
                         int(sys.argv[2]) if len(sys.argv) > 2 else -1,
