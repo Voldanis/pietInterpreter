@@ -4,7 +4,7 @@ from piet import *
 
 
 class PietToPythonTranslator:
-    def __init__(self, image_path, codel_size=-1):
+    def __init__(self, image_path: str, codel_size=-1):
         img = Normalizer.normalize(image_path, codel_size)
         self.pixels = img.codels
         self.width = img.width
@@ -12,6 +12,7 @@ class PietToPythonTranslator:
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.stack = []
         self.state = ProgramState()
+        self.program_name = image_path[image_path.rfind('/'):image_path.rfind('.')]
 
         self.palette = [
             [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
@@ -89,15 +90,52 @@ class PietToPythonTranslator:
         return border_codels[0]
 
     def execute_cmd(self, cmd, n, commands):
-        if cmd == "pointer":
+        if cmd == "push":
+            commands.append("stack.append(" + str(n) + ")")
+        elif cmd == "pop":
+            commands.append("stack.pop()")
+        elif cmd == "add":
+            commands.append("stack.append(stack.pop() + stack.pop())")
+        elif cmd == "subtract":
+            commands.append("stack.append(stack.pop() - stack.pop())")
+        elif cmd == "multiply":
+            commands.append("stack.append(stack.pop() * stack.pop())")
+        elif cmd == "divide":
+            commands.append("stack.append(stack.pop() // stack.pop())")
+        elif cmd == "mod":
+            commands.append("stack.append(stack.pop() % stack.pop())")
+        elif cmd == "not":
+            commands.append("stack.append(1 if stack.pop() == 0 else 0)")
+        elif cmd == "greater":
+            commands.append("stack.append(1 if stack.pop() < stack.pop() else 0)")
+
+        elif cmd == "duplicate":
+            commands.append("stack.append(stack[-1])")
+        elif cmd == "roll":
+            commands.append("""
+            count = stack.pop()
+            depth = stack.pop()
+            part = stack[-depth:]
+            rest = stack[:-depth]
+            shift = count % depth
+            if shift != 0:
+                part = part[-shift:] + part[:-shift]
+            stack = rest + part
+            """)
+        elif cmd == "in_char":
+            commands.append("stack.append(ord(input()[0]))")
+        elif cmd == "in_num":
+            commands.append("stack.append(int(input()))")
+        elif cmd == "out_char":
+            commands.append("print(chr(stack.pop()), end='')")
+        elif cmd == "out_num":
+            commands.append("print(stack.pop(), end='')")
+        elif cmd == "pointer":
             raise NotImplementedError("not support 'pointer'")
         elif cmd == "switch":
             raise NotImplementedError("not support 'switch'")
-
-        commands.append(cmd)
-        if cmd == "push":
-            commands[-1] = commands[-1] + ' ' + str(n)
-        #if cmd not in command names
+        else:
+            raise NotImplementedError("Неизвестная команда Piet")
 
     def translate(self):
         attempts = 0
@@ -149,7 +187,9 @@ class PietToPythonTranslator:
             self.state.x, self.state.y = new_x, new_y
             attempts = 0
 
-        with open("python_program.py", "w") as f:
+        # перевод программы
+        with open("python_programs/" + self.program_name + '.py', "w") as f:
+            f.write('stack = []\n')
             for c in commands:
                 f.write(c + '\n')
 
