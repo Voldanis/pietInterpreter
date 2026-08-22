@@ -99,15 +99,13 @@ class PietToPythonTranslator:
             commands[-1] = commands[-1] + ' ' + str(n)
         #if cmd not in command names
 
-    def run(self):
+    def translate(self):
         attempts = 0
-        step = 0
         white_states = WhiteStates()
         commands = []
 
         # Проходимся по картине, пока не попали в тупик
         while attempts < 8:
-            step += 1
             block, color = self.get_block(self.state.x, self.state.y)
             # Если мы на белом блоке, занести текущее состояние, чтобы потом проверить, не ходим ли мы кругами
             if color == self.white:
@@ -162,4 +160,4 @@ if __name__ == "__main__":
         print("* - optional")
     else:
         PietToPythonTranslator(sys.argv[1],
-                        int(sys.argv[2]) if len(sys.argv) > 2 else -1).run()
+                        int(sys.argv[2]) if len(sys.argv) > 2 else -1).translate()

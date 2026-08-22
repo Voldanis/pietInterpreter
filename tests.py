@@ -217,7 +217,7 @@ class TestNormalizerFinal(unittest.TestCase):
     """на реальном файле ДляТестов.png 
     возвращает объект с корректными полями codels, width, height."""
     def test_normalize_integration_real_file(self):
-        test_img = "ДляТестов.png"
+        test_img = "images/ДляТестов.png"
         
         if not os.path.exists(test_img):
             self.skipTest(f"Файл {test_img} не найден, чекни путь мужик!")
