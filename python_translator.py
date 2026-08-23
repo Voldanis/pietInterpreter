@@ -1,7 +1,7 @@
 # import sys
 # from normalizer import Normalizer
 from piet import *
-
+import os
 
 class PietToPythonTranslator:
     def __init__(self, image_path: str, codel_size=-1):
@@ -12,7 +12,7 @@ class PietToPythonTranslator:
         # Ограничитель шагов, чтобы не зависнуть вечно при тестах
         self.stack = []
         self.state = ProgramState()
-        self.program_name = image_path[image_path.rfind('/'):image_path.rfind('.')]
+        self.program_name = image_path[image_path.rfind('/') + 1:image_path.rfind('.')]
 
         self.palette = [
             [Pixel((255, 192, 192)), Pixel((255, 255, 192)), Pixel((192, 255, 192)),
@@ -188,6 +188,9 @@ class PietToPythonTranslator:
             attempts = 0
 
         # перевод программы
+        if not os.path.exists("python_programs"):
+            os.mkdir("python_programs")
+
         with open("python_programs/" + self.program_name + '.py', "w") as f:
             f.write('stack = []\n')
             for c in commands:
